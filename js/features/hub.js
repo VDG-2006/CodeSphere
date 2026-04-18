@@ -6,40 +6,44 @@ const hubPanes = document.querySelectorAll('.hub-pane');
 const accountForm = document.getElementById('settings-account-form');
 const leetcodeInput = document.getElementById('settings-leetcode');
 
-// 1. Hub Tab Logic (with Opacity Animation)
+// 1. Hub Tab Logic (Simplified and Robust)
 hubTabs.forEach(tab => {
   tab.addEventListener('click', () => {
-    // 1. Deactivate all tabs and hide panes
-    hubTabs.forEach(t => t.classList.remove('active'));
-    
-    hubPanes.forEach(p => {
-      p.classList.remove('active');
-      p.style.opacity = '0';
-      // Wait for opacity transition before setting display none
-      setTimeout(() => {
-        p.style.display = 'none';
-      }, 200); 
-    });
-
-    // 2. Activate target pane
-    tab.classList.add('active');
     const targetId = tab.dataset.target;
-    const targetPane = document.getElementById(targetId);
+    if (!targetId) return;
+
+    // 1. Update Tabs
+    hubTabs.forEach(t => t.classList.toggle('active', t === tab));
     
-    if (targetPane) {
-      setTimeout(() => {
-        targetPane.style.display = 'block';
-        // Trigger reflow for fade in
-        void targetPane.offsetWidth; 
-        targetPane.style.opacity = '1';
-        targetPane.classList.add('active');
-      }, 200);
-    }
+    // 2. Update Panes
+    hubPanes.forEach(pane => {
+      if (pane.id === targetId) {
+        // Show target
+        pane.style.display = 'block';
+        // Force reflow
+        void pane.offsetWidth;
+        pane.classList.add('active');
+        pane.style.opacity = '1';
+      } else {
+        // Hide others
+        pane.classList.remove('active');
+        pane.style.opacity = '0';
+        // Note: We keep display block for others during transition if desired,
+        // but for simplicity, we'll just hide them immediately if they aren't active.
+        setTimeout(() => {
+          if (!pane.classList.contains('active')) {
+            pane.style.display = 'none';
+          }
+        }, 300);
+      }
+    });
 
     // 3. Force LeetCode refresh when entering Progress View
     if (targetId === 'progress-view' && auth.currentUser) {
-      if (window.CodeSphere?.fetchLeetCodeStats && leetcodeInput?.value) {
-        window.CodeSphere.fetchLeetCodeStats(leetcodeInput.value.trim());
+      if (window.CodeSphere?.fetchLeetCodeStats) {
+        // Use user handle from settings or profile if available
+        const handle = leetcodeInput?.value.trim() || '';
+        window.CodeSphere.fetchLeetCodeStats(handle || null);
       }
     }
   });

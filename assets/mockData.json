@@ -23,5 +23,15 @@
     { "name": "Data Structures", "solved": 85, "total": 100, "color": "#22c55e" },
     { "name": "Algorithms", "solved": 120, "total": 200, "color": "#f59e0b" },
     { "name": "System Design", "solved": 15, "total": 50, "color": "#ef4444" }
-  ]
+  ],
+  "social": {
+    "following": 10,
+    "followers": 6
+  },
+  "community": {
+    "views": 0,
+    "solutions": 0,
+    "discuss": 0,
+    "reputation": 0
+  }
 }

@@ -127,11 +127,12 @@ const friendlyAuthError = (error) => {
  *
  * @param {import('firebase/auth').User | null} user
  */
-const syncSessionStorage = (user) => {
+const syncSessionStorage = (user, profile = null) => {
   if (user) {
     sessionStorage.setItem('cs_user', JSON.stringify({
       uid:   user.uid,
       email: user.email,
+      leetcodeUsername: profile?.leetcodeUsername || null
     }));
   } else {
     sessionStorage.removeItem('cs_user');
@@ -254,6 +255,7 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     populateProfileUI(user, profile);
+    syncSessionStorage(user, profile);
 
     // Set dynamic greeting
     const displayName = profile?.displayName ?? user.displayName ?? user.email;

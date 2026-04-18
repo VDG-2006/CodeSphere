@@ -1,13 +1,8 @@
 /**
  * dashboard.js — CodeSphere Profile Hub + Progress Dashboard
  *
- * Responsibilities:
- *  - Auto-sync LeetCode stats from Firestore on login.
- *  - Fetch live data from the LeetCode Stats API with mock fallback.
- *  - GSAP "zipper" entrance: hub slides in from top, feed from bottom.
- *  - Dynamic time-based greeting message.
- *  - Route-sync: re-runs render when navigating to home/profile.
- *  - Expose `window.CodeSphere.fetchLeetCodeStats(username)` globally.
+ * Merged with previous api.js logic for a consolidated data layer.
+ * Standardizes IDs with the 'dash-' prefix.
  */
 
 import { auth, db } from '../core/firebase.js';
@@ -18,7 +13,7 @@ import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.12.0/f
 // Constants
 // ─────────────────────────────────────────────────────────────
 
-const LEETCODE_API  = 'https://leetcode-stats-api.herokuapp.com/';
+const ALFA_API_BASE = 'https://alfa-leetcode-api.onrender.com';
 const MOCK_DATA_URL = './assets/mockData.json';
 
 const DEFAULT_CATEGORIES = [
@@ -28,14 +23,25 @@ const DEFAULT_CATEGORIES = [
 ];
 
 // ─────────────────────────────────────────────────────────────
-// Public API
+// Core Logic: Fetching
 // ─────────────────────────────────────────────────────────────
 
 /**
- * Fetches LeetCode stats for a username and renders the dashboard.
- * Called by auth.js on login and by hub.js on tab switch.
- *
- * @param {string|null} username - The LeetCode username.
+ * Helper to fetch local mock data for fallbacks.
+ */
+async function fetchMockData() {
+  try {
+    const res = await fetch(MOCK_DATA_URL);
+    return await res.json();
+  } catch (err) {
+    console.error('[Dashboard] Mock data fetch failed:', err);
+    return { totalSolved: 0, easySolved: 0, mediumSolved: 0, hardSolved: 0, streak: 0 };
+  }
+}
+
+/**
+ * Sole public entry point for stat rendering.
+ * @param {string|null} username - Handle or null for mock fallback.
  */
 export async function fetchLeetCodeStats(username) {
   const syncBtn = document.getElementById('dash-sync-btn');
@@ -50,28 +56,35 @@ export async function fetchLeetCodeStats(username) {
     let data = null;
 
     if (username) {
-      try {
-        const res = await fetch(`${LEETCODE_API}${encodeURIComponent(username)}`);
-        if (res.ok) {
-          const json = await res.json();
-          if (json.status !== 'error' && json.totalSolved !== undefined) {
-            data = json;
-          }
-        }
-      } catch (apiErr) {
-        console.warn('[Dashboard] LeetCode API unavailable. Using mock data.', apiErr);
+      // We use the /solved endpoint for the quickest data retrieval
+      const res = await fetch(`${ALFA_API_BASE}/${encodeURIComponent(username)}/solved`);
+      
+      if (res.ok) {
+        const json = await res.json();
+        
+        // Alfa API uses "solvedProblem" instead of "totalSolved"
+        data = {
+          totalSolved: json.solvedProblem || 0,
+          easySolved: json.easySolved || 0,
+          mediumSolved: json.mediumSolved || 0,
+          hardSolved: json.hardSolved || 0,
+          streak: 0 // Note: Most proxies don't provide real streaks; we use Firestore for this
+        };
       }
     }
 
     if (!data) {
-      console.warn('[Dashboard] Falling back to mock data.');
+      console.warn('[Dashboard] API failed or no username. Using mock fallback.');
       data = await fetchMockData();
     }
 
     renderDashboard(data);
 
   } catch (err) {
-    console.error('[Dashboard] Render failed:', err);
+    console.error('[Dashboard] Alfa API Error:', err);
+    // Silent fallback to mock so the UI doesn't break for the user
+    const mock = await fetchMockData();
+    renderDashboard(mock);
   } finally {
     setLoadingState(false);
     if (syncBtn) syncBtn.classList.remove('is-syncing');
@@ -79,136 +92,65 @@ export async function fetchLeetCodeStats(username) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Dynamic Greeting
-// ─────────────────────────────────────────────────────────────
-
-/**
- * Returns a time-of-day greeting with a motivational push.
- *
- * @param {string} firstName - First word of display name.
- * @returns {string}
- */
-function buildGreeting(firstName) {
-  const h = new Date().getHours();
-  let salutation, challenge;
-
-  if (h < 5)        { salutation = 'Burning midnight oil'; challenge = 'Ready to solve a Hard problem?'; }
-  else if (h < 12)  { salutation = 'Good morning';         challenge = 'Start the day with an Easy warm-up!'; }
-  else if (h < 17)  { salutation = 'Good afternoon';       challenge = 'Time to tackle a Medium challenge?'; }
-  else if (h < 21)  { salutation = 'Good evening';         challenge = 'Extend your streak tonight!'; }
-  else              { salutation = 'Good night';            challenge = 'One last problem before bed?'; }
-
-  return `${salutation}, ${firstName}! 👋  ${challenge}`;
-}
-
-/**
- * Sets the greeting element text.
- *
- * @param {string} displayName
- */
-function setGreeting(displayName) {
-  const el = document.getElementById('hub-greeting');
-  if (!el) return;
-  const firstName = (displayName || 'Coder').split(' ')[0];
-  el.textContent = buildGreeting(firstName);
-}
-
-// ─────────────────────────────────────────────────────────────
-// Initializer
-// ─────────────────────────────────────────────────────────────
-
-function initDashboard() {
-  const dashboard = document.getElementById('progress-view');
-  if (!dashboard) return;
-
-  // Register on global CodeSphere API
-  window.CodeSphere = window.CodeSphere || {};
-  window.CodeSphere.fetchLeetCodeStats = fetchLeetCodeStats;
-  window.CodeSphere.setGreeting        = setGreeting;
-  
-  // Explicitly expose dashboard.render for the router
-  window.CodeSphere.dashboard = {
-    render: (username) => fetchLeetCodeStats(username || syncBtn?.dataset?.username || null)
-  };
-
-  // Sync button
-  const syncBtn = document.getElementById('dash-sync-btn');
-  syncBtn?.addEventListener('click', () => {
-    const username = syncBtn.dataset.username || '';
-    fetchLeetCodeStats(username || null);
-  });
-
-  // Auto-sync when auth state is confirmed
-  onAuthStateChanged(auth, async (user) => {
-    if (!user) return;
-
-    try {
-      const snap = await getDoc(doc(db, 'users', user.uid));
-      const profile = snap.exists() ? snap.data() : null;
-      const username = profile?.leetcodeUsername || null;
-
-      // Set greeting with user's real display name
-      setGreeting(profile?.displayName || user.displayName || user.email);
-
-      fetchLeetCodeStats(username);
-    } catch (err) {
-      console.error('[Dashboard] Firestore fetch failed:', err);
-      fetchLeetCodeStats(null);
-    }
-  });
-
-  // Route-sync: re-render + animate when user navigates to home/profile
-  document.addEventListener('routechange', (e) => {
-    const route = e.detail?.route;
-    if (route === 'home' || route === 'profile') {
-      // Small delay for section to become visible before animating
-      setTimeout(() => runZipperEntrance(), 60);
-    }
-  });
-}
-
-// ─────────────────────────────────────────────────────────────
-// Data Fetchers
-// ─────────────────────────────────────────────────────────────
-
-async function fetchMockData() {
-  const res = await fetch(MOCK_DATA_URL);
-  if (!res.ok) throw new Error('Mock data not available.');
-  return res.json();
-}
-
-// ─────────────────────────────────────────────────────────────
 // Renderer
 // ─────────────────────────────────────────────────────────────
 
 function renderDashboard(data) {
-  // 1. Stat counters
-  animateCounter('dash-stat-total',  data.totalSolved  || 0);
-  animateCounter('dash-stat-easy',   data.easySolved   || 0);
-  animateCounter('dash-stat-medium', data.mediumSolved || 0);
-  animateCounter('dash-stat-hard',   data.hardSolved   || 0);
-  animateCounter('dash-streak-val',  data.streak       || 0);
+  // 1. Animate counters using standardized 'dash-' IDs
+  animateCounter('dash-stat-total',  data.totalSolved  || 0, 2.0);
+  animateCounter('dash-stat-easy',   data.easySolved   || 0, 1.6);
+  animateCounter('dash-stat-medium', data.mediumSolved || 0, 2.0);
+  animateCounter('dash-stat-hard',   data.hardSolved   || 0, 2.5);
+  animateCounter('dash-streak-val',  data.streak       || 0, 1.8);
 
-  // 2. Competency Matrix progress bars
+  // Social & Community Integration
+  if (data.social) {
+    animateCounter('dash-follower-count', Math.round(Math.random() * 5 + 5), 1.0); // mock variations
+    animateCounter('dash-following-count', data.social.following || 10, 1.0);
+  }
+  if (data.community) {
+    animateCounter('dash-views-count', data.community.views || 0, 1.0);
+  }
+
+  // 2. Generate Full 52-Week Heatmap Scaffold
+  renderHeatmap();
+
+  // 3. Competency Matrix
   renderMatrix(data);
 
-  // 3. GSAP zipper entrance
-  runZipperEntrance();
+  // 4. Animation entrance (only if section is active)
+  const homeSection = document.getElementById('home-section');
+  if (homeSection?.classList.contains('active')) {
+    setTimeout(runZipperEntrance, 50);
+  }
+}
+
+function renderHeatmap() {
+  const container = document.getElementById('heatmap-placeholder');
+  if (!container) return;
+  // Build 52 columns with 7 rows (364 cells)
+  let html = '';
+  for (let c = 0; c < 52; c++) {
+    html += '<div class="heatmap-col">';
+    for (let r = 0; r < 7; r++) {
+      // Random mock intensity (mostly 0)
+      const lvl = Math.random() > 0.8 ? Math.floor(Math.random() * 4) + 1 : 0;
+      html += `<div class="heatmap-cell" data-lvl="${lvl}"></div>`;
+    }
+    html += '</div>';
+  }
+  container.innerHTML = html;
 }
 
 function renderMatrix(data) {
   const grid = document.getElementById('competency-matrix-grid');
   if (!grid) return;
 
-  let categories = data.categories;
-
-  if (!categories || !categories.length) {
-    categories = DEFAULT_CATEGORIES.map((cat, i) => {
-      const solved   = [data.easySolved,  data.mediumSolved,  data.hardSolved ][i] || 0;
-      const catTotal = [data.totalEasy,   data.totalMedium,   data.totalHard  ][i] || 100;
-      return { ...cat, solved, total: catTotal };
-    });
-  }
+  const categories = data.categories || DEFAULT_CATEGORIES.map((cat, i) => {
+    const solved   = [data.easySolved,  data.mediumSolved,  data.hardSolved ][i] || 0;
+    const catTotal = [data.totalEasy,   data.totalMedium,   data.totalHard  ][i] || 100;
+    return { ...cat, solved, total: catTotal };
+  });
 
   grid.innerHTML = categories.map(cat => {
     const pct = Math.min(100, Math.round((cat.solved / cat.total) * 100)) || 0;
@@ -221,7 +163,7 @@ function renderMatrix(data) {
             &nbsp;·&nbsp; ${cat.solved}/${cat.total}
           </span>
         </div>
-        <div class="progress-track" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="${escHtml(cat.name)} ${pct}%">
+        <div class="progress-track">
           <div class="progress-fill" style="--fill-color:${cat.color};" data-pct="${pct}"></div>
         </div>
       </div>
@@ -232,125 +174,114 @@ function renderMatrix(data) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// GSAP Animations
+// Animations
 // ─────────────────────────────────────────────────────────────
 
-function waitForGSAP() {
+async function waitForGSAP() {
   return new Promise(resolve => {
     if (window.gsap) return resolve(window.gsap);
-    const check = setInterval(() => {
-      if (window.gsap) { clearInterval(check); resolve(window.gsap); }
-    }, 50);
+    const itv = setInterval(() => { if (window.gsap) { clearInterval(itv); resolve(window.gsap); } }, 50);
   });
 }
 
-/**
- * "Zipper" entrance:
- *  - Profile Hub slides in from the top.
- *  - Feed cards slide in from the bottom.
- *  Both animate simultaneously with slight stagger, creating a
- *  mirror "closing zipper" effect.
- */
-async function runZipperEntrance() {
+export async function runZipperEntrance() {
   const gsap = await waitForGSAP();
-
-  // Hub slides from top
-  gsap.fromTo('#profile-hub', 
+  
+  // Slide profile hub from top
+  gsap.fromTo('#profile-hub',
     { opacity: 0, y: -40 },
-    { opacity: 1, y: 0, duration: 0.65, ease: 'power3.out', clearProps: 'all' }
+    { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out', clearProps: 'all' }
   );
 
-  // Stat cards stagger in from above
+  // Stagger stat cards from below
   gsap.fromTo('.dash-card',
-    { opacity: 0, y: -24 },
-    { opacity: 1, y: 0, duration: 0.5, ease: 'back.out(1.6)', stagger: 0.07, delay: 0.1, clearProps: 'all' }
+    { opacity: 0, scale: 0.9, y: 30 },
+    { opacity: 1, scale: 1, y: 0, duration: 0.5, stagger: 0.08, ease: 'back.out(1.7)', clearProps: 'all', delay: 0.1 }
   );
 
-  // Feed divider fades in
-  gsap.fromTo('.feed-divider',
-    { opacity: 0, scaleX: 0.6 },
-    { opacity: 1, scaleX: 1, duration: 0.4, ease: 'power2.out', delay: 0.35, clearProps: 'all' }
-  );
-
-  // Feed cards slide from bottom
+  // Slide feed/other content from bottom
   gsap.fromTo('#main-feed-column .card',
-    { opacity: 0, y: 40 },
-    { opacity: 1, y: 0, duration: 0.55, ease: 'power3.out', stagger: 0.1, delay: 0.25, clearProps: 'all' }
-  );
-
-  // Matrix section fades up
-  gsap.fromTo('.matrix-section',
-    { opacity: 0, y: 20 },
-    { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out', delay: 0.5, clearProps: 'all' }
+    { opacity: 0, y: 50 },
+    { opacity: 1, y: 0, duration: 0.6, stagger: 0.1, ease: 'power3.out', clearProps: 'all', delay: 0.2 }
   );
 }
 
-async function animateCounter(elId, targetValue) {
-  const el = document.getElementById(elId);
+async function animateCounter(id, target, duration = 2) {
+  const el = document.getElementById(id);
   if (!el) return;
 
   const gsap = await waitForGSAP();
-  const proxy = { val: 0 };
-  const isStreakEl = elId === 'dash-streak-val';
-
-  if (isStreakEl) {
-    if (!el.firstChild || el.firstChild.nodeType !== Node.TEXT_NODE) {
-      el.insertBefore(document.createTextNode('0'), el.firstChild);
-    }
-  }
+  const startValue = parseInt(el.textContent, 10) || 0;
+  const proxy = { val: startValue };
 
   gsap.to(proxy, {
-    val: targetValue,
-    duration: 2,
+    val: target,
+    duration,
     ease: 'power3.out',
-    onUpdate() {
+    onUpdate: () => {
       const v = Math.round(proxy.val).toLocaleString();
-      if (isStreakEl) el.firstChild.textContent = v;
-      else            el.textContent = v;
-    },
-    onComplete() {
-      const v = targetValue.toLocaleString();
-      if (isStreakEl) el.firstChild.textContent = v;
-      else            el.textContent = v;
+      if (id === 'dash-streak-val') {
+        const span = el.querySelector('.streak-unit');
+        el.textContent = v;
+        if (span) el.appendChild(span);
+      } else {
+        el.textContent = v;
+      }
     }
   });
 }
 
-async function animateBars() {
-  const gsap = await waitForGSAP();
+function animateBars() {
   document.querySelectorAll('.progress-fill').forEach((fill, i) => {
-    const pct = parseFloat(fill.dataset.pct) || 0;
-    gsap.fromTo(fill,
-      { width: '0%' },
-      { width: `${pct}%`, duration: 1.4, delay: i * 0.15, ease: 'power3.out' }
-    );
+    const pct = fill.dataset.pct || 0;
+    if (window.gsap) {
+      window.gsap.fromTo(fill, { width: '0%' }, { width: `${pct}%`, duration: 1.5, delay: i * 0.1, ease: 'power3.out' });
+    } else {
+      fill.style.width = `${pct}%`;
+    }
   });
 }
 
 // ─────────────────────────────────────────────────────────────
-// Loading State
+// Init
 // ─────────────────────────────────────────────────────────────
+
+function setGreeting(displayName) {
+  const el = document.getElementById('hub-greeting');
+  if (!el) return;
+  const h = new Date().getHours();
+  const greeting = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+  el.textContent = `${greeting}, ${(displayName || 'Coder').split(' ')[0]}! 👋`;
+}
+
+function initDashboard() {
+  if (!document.getElementById('profile-hub')) return;
+
+  window.CodeSphere = window.CodeSphere || {};
+  window.CodeSphere.dashboard = {
+    render: (user) => fetchLeetCodeStats(user),
+    setGreeting
+  };
+
+  document.getElementById('dash-sync-btn')?.addEventListener('click', (e) => {
+    fetchLeetCodeStats(e.currentTarget.dataset.username);
+  });
+
+  onAuthStateChanged(auth, async (u) => {
+    if (!u) return;
+    const snap = await getDoc(doc(db, 'users', u.uid));
+    const p = snap.exists() ? snap.data() : null;
+    setGreeting(p?.displayName || u.displayName);
+    fetchLeetCodeStats(p?.leetcodeUsername || null);
+  });
+}
 
 function setLoadingState(isLoading) {
-  document.querySelectorAll('.dash-card').forEach(card => {
-    card.classList.toggle('is-loading', isLoading);
-  });
+  document.querySelectorAll('.dash-card').forEach(c => c.classList.toggle('is-loading', isLoading));
 }
 
-// ─────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────
-
-function escHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+function escHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
-
-// ─────────────────────────────────────────────────────────────
-// Bootstrap
-// ─────────────────────────────────────────────────────────────
 
 initDashboard();
