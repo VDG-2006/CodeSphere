@@ -1,0 +1,11 @@
+# ── Sensitive runtime config ────────────────────────────────
+# Never commit the real credentials file.
+js/config.js
+
+# ── OS / Editor junk ────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.log
+
+# ── Node (if you ever add a build step) ─────────────────────
+node_modules/

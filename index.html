@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="CodeSphere — A social learning platform for computer science students. Share code, track progress, and grow together."
+    />
+    <title>CodeSphere | Social Learning for CS Students</title>
+
+    <!-- Google Fonts: Inter (UI) + Merriweather Italic (accent) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Merriweather:ital@1&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="css/base.css" />
+    <link rel="stylesheet" href="css/layout.css" />
+    <link rel="stylesheet" href="css/components.css" />
+    <link rel="stylesheet" href="css/dark.css" />
+    <link rel="stylesheet" href="css/dashboard.css" />
+
+    <!-- GSAP Animation Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
+
+    <!-- SPA Modules (organized by responsibility) -->
+    <script src="js/ui/theme.js" defer></script>
+    <script type="module" src="js/core/firebase.js" defer></script>
+    <script type="module" src="js/core/router.js" defer></script>
+    <script type="module" src="js/auth/auth.js" defer></script>
+    <script type="module" src="js/features/mentor.js" defer></script>
+    <script type="module" src="js/features/dashboard.js" defer></script>
+    <script type="module" src="js/features/feed.js" defer></script>
+    <script type="module" src="js/features/hub.js" defer></script>
+    <script type="module" src="js/ui/nav.js" defer></script>
+  </head>
+
+  <body>
+
+    <!-- ===================== GLOBAL NAVIGATION ===================== -->
+    <!--
+      JS hook: auth.js adds class="is-authenticated" to <body>.
+      CSS uses body.is-authenticated to hide .unauth-nav and show .auth-nav.
+    -->
+    <header class="site-header" role="banner" id="site-header">
+      <nav class="global-nav" aria-label="Primary navigation">
+
+        <!-- Left Side: App Logo -->
+        <a href="/" class="nav-logo" aria-label="CodeSphere home" data-route="landing" id="main-logo">
+          <span class="logo-icon" aria-hidden="true">&lt;/&gt;</span>
+          <span class="logo-text">CodeSphere</span>
+        </a>
+
+        <!-- Center: Search area (Only for Authenticated Users) -->
+        <div class="auth-only nav-center-area">
+          <div class="nav-search" role="search">
+            <label for="global-search" class="sr-only">Search</label>
+            <input
+              type="text"
+              id="global-search"
+              class="nav-search__input"
+              placeholder="Search... /"
+              autocomplete="off"
+              aria-label="Search"
+            />
+          </div>
+        </div>
+
+        <!-- Right Side: Appearance, Streaks, Profile -->
+        <div class="nav-right-area">
+          
+          <!-- Appearance Toggle (Sliding Switch) -->
+          <div class="theme-switch-wrapper">
+            <label class="theme-switch" for="theme-toggle">
+              <input type="checkbox" id="theme-toggle" />
+              <div class="slider-round">
+                <div class="track-icons" aria-hidden="true">
+                  <span class="nav-icon-sun"></span>
+                  <span class="nav-icon-moon"></span>
+                </div>
+                <div class="slider-handle"></div>
+              </div>
+            </label>
+          </div>
+
+          <!-- Authenticated Utilities -->
+          <div class="auth-only nav-utility-group">
+            <!-- Streak Counter -->
+            <div class="nav-streak">
+              🔥 <span id="nav-streak-count">0</span>
+            </div>
+
+            <!-- Profile Trigger -->
+            <div id="nav-profile-trigger" class="profile-trigger">
+              <img class="nav-avatar" id="nav-avatar" src="" alt="Your avatar" width="36" height="36" />
+              
+              <div id="profile-dropdown" class="profile-dropdown-menu">
+                <a href="#" id="nav-profile-link" data-route="profile">👤 Profile</a>
+                <a href="#" data-route="settings">⚙️ Settings</a>
+                <hr class="nav-divider">
+                <a href="#" id="logout-btn">🚪 Logout</a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Guest Buttons -->
+          <div class="unauth-only nav-utility-group">
+            <button class="btn btn-ghost" type="button" id="nav-login-btn" data-route="login">Log In</button>
+            <button class="btn btn-primary" type="button" id="nav-signup-btn" data-route="signup">Sign Up</button>
+          </div>
+
+        </div>
+
+      </nav>
+    </header>
+
+
+    <!-- ===================== SPA MAIN CONTAINER ===================== -->
+    <main id="app-container" role="main">
+
+
+      <!-- ============================================================ -->
+      <!-- SECTION 1: LANDING PAGE                                       -->
+      <!-- ============================================================ -->
+      <section
+        id="landing-section"
+        class="page-section active"
+        aria-label="Welcome to CodeSphere"
+      >
+        <!-- CSS-animated background: perspective grid + ambient glows -->
+        <div class="hero-bg" aria-hidden="true">
+          <div class="hero-bg__grid"></div>
+          <div class="hero-bg__glow hero-bg__glow--left"></div>
+          <div class="hero-bg__glow hero-bg__glow--right"></div>
+        </div>
+
+        <div class="hero-container">
+
+          <!-- Status badge -->
+          <div class="hero-badge" aria-label="Product status">
+            <span class="hero-badge__dot" aria-hidden="true"></span>
+            Now in Beta &mdash; Free for all CS students
+          </div>
+
+          <!-- Primary heading -->
+          <h1 class="hero-title">
+            CodeSphere
+            <em class="hero-title__accent">The Social Pulse of CSE</em>
+          </h1>
+
+          <!-- Supporting copy -->
+          <p class="hero-description">
+            Track your LeetCode streaks, get answers from an
+            <strong>AI-powered mentor</strong>, and grow alongside a community
+            of driven CS students &mdash; all in one place.
+          </p>
+
+          <!-- Primary CTA -->
+          <div class="hero-cta">
+            <button
+              class="btn btn-primary btn--hero"
+              type="button"
+              id="hero-cta-btn"
+              data-route="signup"
+              aria-label="Create your free CodeSphere account"
+            >
+              Get Started
+              <span class="btn__arrow" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                </svg>
+              </span>
+            </button>
+            <button
+              class="btn btn-ghost"
+              type="button"
+              id="hero-login-btn"
+              data-route="login"
+              aria-label="Log in to your existing account"
+            >
+              Already have an account?
+            </button>
+          </div>
+
+          <!-- Feature highlights -->
+          <div class="feature-grid" role="list" aria-label="Platform features">
+
+            <article class="feature-card" role="listitem">
+              <div class="feature-card__icon" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                </svg>
+              </div>
+              <h2 class="feature-card__title">Streak Tracking</h2>
+              <p class="feature-card__body">
+                Sync your LeetCode progress and watch your daily streak ignite your grind.
+              </p>
+            </article>
+
+            <article class="feature-card" role="listitem">
+              <div class="feature-card__icon" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              </div>
+              <h2 class="feature-card__title">AI Mentor</h2>
+              <p class="feature-card__body">
+                Stuck on a problem? Ask your Gemini-powered guide for concise, technical answers.
+              </p>
+            </article>
+
+            <article class="feature-card" role="listitem">
+              <div class="feature-card__icon" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </div>
+              <h2 class="feature-card__title">Community Feed</h2>
+              <p class="feature-card__body">
+                Share code snippets, video walkthroughs, and tips with your CS cohort in real time.
+              </p>
+            </article>
+
+          </div><!-- /feature-grid -->
+
+        </div><!-- /hero-container -->
+      </section>
+
+
+      <!-- ============================================================ -->
+      <!-- SECTION 2: LOG IN                                             -->
+      <!-- ============================================================ -->
+      <section
+        id="login-section"
+        class="page-section"
+        aria-label="Log in to CodeSphere"
+        style="display:none;"
+      >
+        <div class="section-center">
+          <article class="card card--auth">
+
+            <header class="card__header">
+              <span class="card__logo-mark" aria-hidden="true">&lt;/&gt;</span>
+              <h1 class="card__title">Welcome back</h1>
+              <p class="card__subtitle">Log in to pick up where you left off</p>
+            </header>
+
+            <form id="login-form" class="auth-form" novalidate>
+              <div class="form-group">
+                <label class="form-label" for="login-email">Email Address</label>
+                <input class="form-input input-field" type="email" id="login-email" name="email" placeholder="you@university.edu" autocomplete="email" required aria-required="true" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="login-password">Password</label>
+                <input class="form-input input-field" type="password" id="login-password" name="password" placeholder="Enter your password" autocomplete="current-password" required aria-required="true" minlength="8" />
+              </div>
+              <div class="form-error" id="login-error" role="alert" aria-live="polite" hidden></div>
+              <div class="auth-actions">
+                <button class="btn btn-primary" type="submit" id="sign-in-btn" data-action="sign-in">Sign In</button>
+              </div>
+            </form>
+
+            <footer class="card__footer">
+              <p class="card__switch">
+                No account yet?
+                <button class="btn-link" type="button" data-route="signup">Create one free</button>
+              </p>
+            </footer>
+
+          </article>
+        </div>
+      </section>
+
+
+      <!-- ============================================================ -->
+      <!-- SECTION 3: SIGN UP                                            -->
+      <!-- ============================================================ -->
+      <section
+        id="signup-section"
+        class="page-section"
+        aria-label="Create a CodeSphere account"
+        style="display:none;"
+      >
+        <div class="section-center">
+          <article class="card card--auth">
+
+            <header class="card__header">
+              <span class="card__logo-mark" aria-hidden="true">&lt;/&gt;</span>
+              <h1 class="card__title">Join CodeSphere</h1>
+              <p class="card__subtitle">Free forever for CS students</p>
+            </header>
+
+            <form id="signup-form" class="auth-form" novalidate>
+              <div class="form-group">
+                <label class="form-label" for="signup-name">Display Name</label>
+                <input class="form-input input-field" type="text" id="signup-name" name="displayName" placeholder="e.g. Alex Chen" autocomplete="name" required aria-required="true" maxlength="40" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="signup-email">Email Address</label>
+                <input class="form-input input-field" type="email" id="signup-email" name="email" placeholder="you@university.edu" autocomplete="email" required aria-required="true" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="signup-password">Password</label>
+                <input class="form-input input-field" type="password" id="signup-password" name="password" placeholder="Min. 8 characters" autocomplete="new-password" required aria-required="true" minlength="8" />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="signup-leetcode">
+                  LeetCode Username
+                  <span class="form-label__optional">(optional)</span>
+                </label>
+                <input
+                  class="form-input input-field"
+                  type="text"
+                  id="signup-leetcode"
+                  name="leetcodeUsername"
+                  placeholder="Your LeetCode handle"
+                  autocomplete="off"
+                  maxlength="40"
+                />
+              </div>
+              <div class="form-error" id="signup-error" role="alert" aria-live="polite" hidden></div>
+              <div class="auth-actions">
+                <button class="btn btn-primary" type="submit" id="signup-btn" data-action="create-account">Create Account</button>
+              </div>
+            </form>
+
+            <footer class="card__footer">
+              <p class="card__switch">
+                Already a member?
+                <button class="btn-link" type="button" data-route="login">Log in here</button>
+              </p>
+            </footer>
+
+          </article>
+        </div>
+      </section>
+
+
+      <!-- ============================================================ -->
+      <!-- SECTION 4: HOME — Profile Hub + Activity Feed               -->
+      <!-- ============================================================ -->
+      <section
+        id="home-section"
+        class="page-section"
+        aria-label="Home — Profile Hub and Activity Feed"
+        style="display:none;"
+      >
+        <div class="home-single-col">
+
+          <!-- ══════════════════════════════════════════════════════ -->
+          <!--  PROFILE HUB HEADER                                    -->
+          <!-- ══════════════════════════════════════════════════════ -->
+          <div id="profile-hub" class="profile-hub">
+
+            <!-- Identity Row -->
+            <div class="hub-identity">
+              <div class="hub-avatar-wrap">
+                <img class="hub-avatar" id="user-avatar" src="" alt="User avatar" width="80" height="80" />
+                <span class="hub-avatar-status" aria-label="Online"></span>
+              </div>
+              <div class="hub-identity-info">
+                <p class="hub-greeting" id="hub-greeting">Good evening! 👋</p>
+                <h2 class="hub-name" id="user-name">Guest User</h2>
+                <div class="hub-identity-meta">
+                  <span class="hub-handle" id="user-handle">@guest</span>
+                  <span class="lc-badge">⚡ LeetCode Pro</span>
+                </div>
+              </div>
+              <button id="dash-sync-btn" class="btn-sync hub-sync-btn" title="Re-sync LeetCode stats" aria-label="Sync LeetCode Stats">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M23 4v6h-6M1 20v-6h6"/>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                </svg>
+                Sync
+              </button>
+            </div>
+
+            <!-- Hub Tab Navigation -->
+            <nav class="hub-nav" aria-label="Profile sections">
+              <button class="hub-tab active" data-target="progress-view">📊 My Progress</button>
+              <button class="hub-tab" data-target="settings-view">⚙️ Settings</button>
+            </nav>
+
+            <!-- Hub Content Panes -->
+            <div id="hub-display" class="hub-content">
+
+              <!-- ── PROGRESS VIEW ── -->
+              <div id="progress-view" class="hub-pane active">
+
+                <!-- 4-Card Stats Grid -->
+                <div class="dashboard-grid" role="list" aria-label="LeetCode Statistics">
+                  <article class="dash-card dash-card--total" role="listitem" aria-label="Total problems solved">
+                    <span class="dash-card__label">Total Solved</span>
+                    <span class="dash-card__value" id="dash-stat-total">—</span>
+                  </article>
+                  <article class="dash-card dash-card--easy" role="listitem" aria-label="Easy problems solved">
+                    <span class="dash-card__label">Easy</span>
+                    <span class="dash-card__value" id="dash-stat-easy">—</span>
+                  </article>
+                  <article class="dash-card dash-card--medium" role="listitem" aria-label="Medium problems solved">
+                    <span class="dash-card__label">Medium</span>
+                    <span class="dash-card__value" id="dash-stat-medium">—</span>
+                  </article>
+                  <article class="dash-card dash-card--hard" role="listitem" aria-label="Hard problems solved">
+                    <span class="dash-card__label">Hard</span>
+                    <span class="dash-card__value" id="dash-stat-hard">—</span>
+                  </article>
+                </div>
+
+                <!-- 🔥 Streak Pulse Card -->
+                <div class="dash-card streak-pulse-card" aria-label="Daily coding streak">
+                  <div class="streak-visual">
+                    <span class="streak-fire" aria-hidden="true">🔥</span>
+                    <div class="streak-info">
+                      <h3>The Streak Pulse</h3>
+                      <p id="dash-streak-val">0<span class="streak-unit">days</span></p>
+                    </div>
+                  </div>
+                  <div class="streak-badge" role="status">Active Now</div>
+                </div>
+
+                <!-- Competency Matrix -->
+                <div class="matrix-section">
+                  <div class="matrix-header">
+                    <h3 class="matrix-title">Competency Matrix</h3>
+                  </div>
+                  <div id="competency-matrix-grid" class="matrix-grid" aria-label="Skill competency breakdown">
+                    <div class="dash-skeleton" style="height:52px;"></div>
+                    <div class="dash-skeleton" style="height:52px;"></div>
+                    <div class="dash-skeleton" style="height:52px;"></div>
+                  </div>
+                </div>
+
+              </div><!-- /progress-view -->
+
+              <!-- ── SETTINGS VIEW ── -->
+              <div id="settings-view" class="hub-pane" style="display:none; opacity:0;">
+                <form id="settings-account-form" class="auth-form" novalidate>
+                  <div class="form-group">
+                    <label class="form-label" for="settings-leetcode">LeetCode Username</label>
+                    <input class="form-input input-field" type="text" id="settings-leetcode" name="settings-leetcode" placeholder="e.g. neetcode123" />
+                  </div>
+                  <div class="form-error" id="settings-error" hidden></div>
+                  <div id="settings-success" class="form-success" hidden style="color:#10b981;font-size:0.875rem;">Changes saved successfully.</div>
+                  <div class="auth-actions">
+                    <button class="btn btn-primary" type="submit" id="settings-save-btn">Save Changes</button>
+                  </div>
+                </form>
+              </div><!-- /settings-view -->
+
+            </div><!-- /hub-content -->
+          </div><!-- /profile-hub -->
+
+          <!-- ══════════════════════════════════════════════════════ -->
+          <!--  MY FEED DIVIDER                                       -->
+          <!-- ══════════════════════════════════════════════════════ -->
+          <div class="feed-divider" role="separator" aria-label="Activity Feed">
+            <div class="feed-divider__line"></div>
+            <span class="feed-divider__label">My Feed</span>
+            <div class="feed-divider__line"></div>
+          </div>
+
+          <!-- ══════════════════════════════════════════════════════ -->
+          <!--  ACTIVITY FEED                                         -->
+          <!-- ══════════════════════════════════════════════════════ -->
+          <div id="main-feed-column" class="main-feed-column">
+
+            <!-- AI Mentor Card -->
+            <article class="card ai-mentor-card" aria-labelledby="ai-mentor-title">
+              <header class="ai-mentor__header">
+                <span class="ai-mentor__icon" aria-hidden="true">🤖</span>
+                <div>
+                  <h2 class="ai-mentor__title" id="ai-mentor-title">AI Mentor</h2>
+                  <p class="ai-mentor__desc">Stuck on a logic problem or need a code review?</p>
+                </div>
+              </header>
+              <div class="ai-input-group">
+                <input
+                  type="text"
+                  id="ai-question"
+                  class="form-input input-field"
+                  placeholder="Ask your project guide…"
+                  aria-label="Ask the AI mentor"
+                  autocomplete="off"
+                />
+                <button id="ask-ai-btn" class="btn btn-primary" type="button" aria-label="Send question to AI mentor">
+                  Ask
+                </button>
+              </div>
+              <div id="ai-response" class="ai-response" role="status" aria-live="polite"></div>
+            </article>
+
+            <!-- Create Post Card -->
+            <article class="card card--composer" aria-label="Create a new post">
+              <header class="composer__header">
+                <img class="composer__avatar" id="composer-avatar" src="" alt="" width="40" height="40" aria-hidden="true" />
+                <h2 class="composer__title">Share Something</h2>
+              </header>
+              <form id="post-form" class="post-form" novalidate>
+                <div class="form-group">
+                  <label class="form-label sr-only" for="post-content">Code snippet or thought</label>
+                  <textarea class="form-textarea input-field" id="post-content" name="content" placeholder="Paste your code, share a tip, or ask a question…" rows="4" aria-label="Post content"></textarea>
+                </div>
+                <div class="form-group" style="margin-top:var(--space-4);">
+                  <label class="form-label sr-only" for="post-video-url">YouTube URL</label>
+                  <input type="url" id="post-video-url" placeholder="Paste YouTube link (optional)..." class="form-input input-field" style="width:100%;border-radius:var(--radius-sm);" />
+                </div>
+                <div class="composer__actions">
+                  <label class="btn btn-secondary btn--icon" for="post-video" aria-label="Attach a video">
+                    <span class="upload-icon" aria-hidden="true">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                      </svg>
+                    </span>
+                    <input class="form-input-file" type="file" id="post-video" name="video" accept="video/*" aria-label="Upload a video" />
+                  </label>
+                  <span class="file-name-display" id="video-file-name" aria-live="polite">No file chosen</span>
+                  <button class="btn btn-primary" type="submit" id="post-submit-btn">Post</button>
+                </div>
+              </form>
+            </article>
+
+            <!-- Live Feed Posts Container -->
+            <div id="feed-container" class="feed-container" role="feed">
+              <article class="video-skeleton">
+                <div class="video-placeholder shimmer">
+                  <div class="play-overlay"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+                </div>
+                <h3 class="video-title-placeholder shimmer">Upcoming: Binary Search Walkthrough</h3>
+              </article>
+              <article class="video-skeleton">
+                <div class="video-placeholder shimmer">
+                  <div class="play-overlay"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+                </div>
+                <h3 class="video-title-placeholder shimmer">Upcoming: Dynamic Programming Walkthrough</h3>
+              </article>
+              <article class="video-skeleton">
+                <div class="video-placeholder shimmer">
+                  <div class="play-overlay"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>
+                </div>
+                <h3 class="video-title-placeholder shimmer">Upcoming: Graph Traversal Walkthrough</h3>
+              </article>
+            </div>
+
+          </div><!-- /main-feed-column -->
+
+        </div><!-- /home-single-col -->
+      </section>
+
+    </main>
+
+
+    <!-- ===================== GLOBAL FOOTER ===================== -->
+    <footer class="site-footer" role="contentinfo">
+      <p class="footer-text">
+        &copy; <span id="footer-year"></span> CodeSphere &mdash; Built for CS students, by CS students.
+      </p>
+    </footer>
+
+    <script>
+      document.getElementById('footer-year').textContent = new Date().getFullYear();
+    </script>
+
+  </body>
+</html>

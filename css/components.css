@@ -1,0 +1,728 @@
+/* ============================================================
+   components.css — Element Layer
+   CodeSphere | Buttons · Inputs · Cards · Stats · Nav · Feed
+   ============================================================ */
+
+/* ── 1. Buttons ─────────────────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  letter-spacing: var(--tracking-wide);
+  border-radius: var(--radius-md);
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  transition:
+    background-color var(--transition-fast),
+    color            var(--transition-fast),
+    border-color     var(--transition-fast),
+    box-shadow       var(--transition-fast),
+    transform        var(--transition-fast);
+}
+
+.btn:active {
+  transform: scale(0.975);
+}
+
+/* Primary: solid black */
+.btn-primary {
+  background-color: var(--color-accent);
+  color: var(--color-text-inverse);
+  border-color: var(--color-accent);
+}
+
+.btn-primary:hover {
+  background-color: var(--color-accent-hover);
+  border-color: var(--color-accent-hover);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+/* Secondary: outlined */
+.btn-secondary {
+  background-color: transparent;
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
+}
+
+.btn-secondary:hover {
+  background-color: var(--color-bg-tertiary);
+  border-color: var(--color-text-muted);
+}
+
+/* Nav button: ghost / text style */
+.nav-btn {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  letter-spacing: var(--tracking-normal);
+  color: var(--nav-text);
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition:
+    color            var(--transition-fast),
+    background-color var(--transition-fast);
+}
+
+.nav-btn:hover {
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-tertiary);
+}
+
+.nav-btn.active {
+  color: var(--color-text-primary);
+  font-weight: var(--font-semibold);
+}
+
+/* Logout button: muted red tone on hover */
+.nav-btn--logout {
+  color: var(--color-text-muted);
+}
+
+.nav-btn--logout:hover {
+  color: var(--color-hard);
+  background-color: rgba(239, 68, 68, 0.06);
+}
+
+/* ── 2. Form Inputs ─────────────────────────────────────────── */
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.form-group--inline {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.form-label {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-text-primary);
+  letter-spacing: var(--tracking-normal);
+}
+
+.form-input {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow   var(--transition-fast);
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.form-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.form-input:hover {
+  border-color: var(--color-border-strong);
+}
+
+.form-input:focus {
+  border-color: var(--color-text-primary);
+  box-shadow: 0 0 0 3px rgba(10, 10, 10, 0.07);
+  outline: none;
+}
+
+/* Textarea */
+.form-textarea {
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  resize: vertical;
+  min-height: 120px;
+  line-height: var(--leading-relaxed);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow   var(--transition-fast);
+}
+
+.form-textarea::placeholder {
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+}
+
+.form-textarea:hover {
+  border-color: var(--color-border-strong);
+}
+
+.form-textarea:focus {
+  border-color: var(--color-text-primary);
+  box-shadow: 0 0 0 3px rgba(10, 10, 10, 0.07);
+  outline: none;
+}
+
+/* File Input — visually hidden; label acts as trigger */
+.form-input-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.form-label--file {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-text-secondary);
+  border: 1.5px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition:
+    color            var(--transition-fast),
+    border-color     var(--transition-fast),
+    background-color var(--transition-fast);
+}
+
+.form-label--file:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-text-primary);
+  background-color: var(--color-bg-secondary);
+}
+
+.upload-icon {
+  font-size: var(--text-base);
+}
+
+.file-name-display {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+/* Error message */
+.form-error {
+  font-size: var(--text-xs);
+  color: var(--color-hard);
+  padding: var(--space-2) var(--space-3);
+  background-color: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  border-radius: var(--radius-md);
+}
+
+/* ── 3. Card — Base ─────────────────────────────────────────── */
+
+.card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-8);
+  box-shadow: var(--shadow-xs);
+  transition: box-shadow var(--transition-base);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+/* Card header area */
+.card__header {
+  text-align: center;
+  margin-bottom: var(--space-8);
+}
+
+.card__logo-mark {
+  display: inline-block;
+  font-size: var(--text-xl);
+  font-weight: var(--font-black);
+  font-family: var(--font-mono);
+  letter-spacing: -0.05em;
+  margin-bottom: var(--space-4);
+}
+
+.card__title {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+  letter-spacing: var(--tracking-tight);
+  margin-bottom: var(--space-2);
+}
+
+.card__subtitle {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  max-width: 30ch;
+  margin: 0 auto;
+  line-height: var(--leading-relaxed);
+}
+
+/* ── 4. Auth Card (Login Portal) ────────────────────────────── */
+
+.card--auth {
+  width: 100%;
+  max-width: 440px;
+  box-shadow: var(--shadow-md);
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.auth-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.auth-actions .btn {
+  width: 100%;
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--text-base);
+}
+
+/* ── 5. Composer Card (Create Post) ─────────────────────────── */
+
+.card--composer {
+  box-shadow: var(--shadow-sm);
+}
+
+.composer__header {
+  margin-bottom: var(--space-5);
+}
+
+.composer__title {
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  letter-spacing: var(--tracking-tight);
+}
+
+.post-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.composer__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ── 6. Stat Cards ──────────────────────────────────────────── */
+
+.stat-card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  box-shadow: var(--shadow-xs);
+  transition:
+    box-shadow   var(--transition-base),
+    transform    var(--transition-base);
+}
+
+.stat-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.stat-card__label {
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.stat-card__value {
+  font-size: var(--text-4xl);
+  font-weight: var(--font-black);
+  letter-spacing: var(--tracking-tight);
+  line-height: 1;
+  margin: var(--space-2) 0 var(--space-1);
+}
+
+.stat-card__sub {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+/* Colour accent bar via border-top  */
+.stat-card--total  { border-top: 3px solid var(--color-text-primary); }
+.stat-card--easy   { border-top: 3px solid var(--color-easy); }
+.stat-card--medium { border-top: 3px solid var(--color-medium); }
+.stat-card--hard   { border-top: 3px solid var(--color-hard); }
+
+/* Value colour tints */
+.stat-card--easy   .stat-card__value { color: var(--color-easy); }
+.stat-card--medium .stat-card__value { color: var(--color-medium); }
+.stat-card--hard   .stat-card__value { color: var(--color-hard); }
+
+/* ── 7. Feed Post Card ──────────────────────────────────────── */
+
+.post-card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-xs);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  transition: box-shadow var(--transition-base);
+}
+
+.post-card:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.post-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.post-card__avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  background-color: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.post-card__author {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+}
+
+.post-card__timestamp {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-left: auto;
+}
+
+.post-card__body {
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+  color: var(--color-text-secondary);
+}
+
+.post-card__code {
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  line-height: var(--leading-loose);
+  color: var(--color-text-primary);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* ── 8. Competency / Skill Node (rendered by JS) ────────────── */
+
+.skill-node {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  border-radius: var(--radius-full);
+  background-color: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  transition:
+    background-color var(--transition-fast),
+    border-color     var(--transition-fast);
+}
+
+.skill-node:hover {
+  background-color: var(--color-accent);
+  color: var(--color-text-inverse);
+  border-color: var(--color-accent);
+}
+
+/* ── 9. Utility: Visually Hidden (Accessibility) ────────────── */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ── 10. Divider ────────────────────────────────────────────── */
+
+.divider {
+  width: 100%;
+  height: 1px;
+  background-color: var(--color-border);
+  margin: var(--space-6) 0;
+}
+
+/* ── 11. AI Mentor Card ─────────────────────────────────────── */
+
+.ai-mentor-card {
+  background: linear-gradient(135deg, var(--color-surface) 0%, #f5f5f5 100%);
+  border: 1px solid var(--color-border);
+  position: relative;
+  overflow: hidden;
+}
+
+.ai-mentor-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #0a0a0a 0%, #555 100%);
+}
+
+.ai-mentor__title {
+  font-size: var(--text-md);
+  font-weight: var(--font-bold);
+  letter-spacing: var(--tracking-tight);
+  margin-bottom: var(--space-1);
+}
+
+.ai-mentor__desc {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-5);
+  max-width: none;
+}
+
+.ai-input-group {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.ai-input-group .form-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.ai-input-group .btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.ai-response {
+  margin-top: var(--space-5);
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+  min-height: 0;
+  transition: min-height var(--transition-base);
+}
+
+.ai-response:not(:empty) {
+  min-height: 48px;
+  padding: var(--space-4);
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.ai-response--loading {
+  color: var(--color-text-muted);
+  animation: mentorPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes mentorPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+.ai-response--error {
+  color: var(--color-hard);
+  background-color: rgba(239, 68, 68, 0.05);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+/* ── 12. Feed Empty / Error State ───────────────────────────── */
+
+.feed-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-16) var(--space-8);
+  text-align: center;
+}
+
+.feed-empty__icon { font-size: var(--text-3xl); }
+
+.feed-empty__text {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  max-width: 30ch;
+}
+
+.feed-empty--error .feed-empty__text { color: var(--color-hard); }
+
+/* ── 13. Like Button ────────────────────────────────────────── */
+
+.like-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  color: var(--color-text-muted);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition:
+    color            var(--transition-fast),
+    border-color     var(--transition-fast),
+    background-color var(--transition-fast);
+}
+
+.like-btn:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
+  background-color: var(--color-bg-secondary);
+}
+
+.like-btn--active {
+  color: var(--color-hard);
+  border-color: rgba(239, 68, 68, 0.3);
+  background-color: rgba(239, 68, 68, 0.05);
+}
+
+.like-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.post-card__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.post-card__author-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.post-card__handle {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+/* ── 14. Video Player ───────────────────────────────────────── */
+
+.video-player {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background-color: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  margin-top: var(--space-3);
+}
+
+.video-player__el {
+  width: 100%;
+  max-height: 360px;
+  object-fit: contain;
+  display: block;
+  background: #000;
+}
+
+.video-player__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--color-bg-secondary);
+  border-top: 1px solid var(--color-border);
+}
+
+.video-player__play-btn {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-xs);
+  background-color: var(--color-accent);
+  color: var(--color-text-inverse);
+  border: none;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.video-player__play-btn:hover { background-color: var(--color-accent-hover); }
+
+.video-player__progress-wrap { flex: 1; }
+
+.video-player__progress {
+  width: 100%;
+  height: 4px;
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--color-border);
+  border-radius: var(--radius-full);
+  outline: none;
+  cursor: pointer;
+}
+
+.video-player__progress::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  background: var(--color-accent);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+}
+
+.video-player__time {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+}
+
