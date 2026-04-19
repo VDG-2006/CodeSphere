@@ -33,9 +33,11 @@
   z-index: 100;
   background-color: var(--color-bg);
   border-bottom: 1px solid var(--color-border);
-  height: var(--nav-height);
+  height: 64px;
   display: flex;
   align-items: center;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .global-nav {
@@ -43,18 +45,251 @@
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  max-width: var(--max-width);
-  margin: 0 auto;
-  padding: 0 var(--space-8);
+  padding: 0 24px;
+  height: 100%;
 }
 
-/* Logo */
+/* Branding Group */
+.nav-left-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Logo & Identity */
 .nav-logo {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: 8px;
   text-decoration: none;
   user-select: none;
+}
+
+.logo-text {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+}
+
+/* Unified Center Search */
+.nav-search-bar {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 600px;
+  height: 40px;
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  padding: 0 16px;
+  transition: all var(--transition-fast);
+}
+
+.nav-search-bar:focus-within {
+  border-color: var(--color-accent);
+  background-color: var(--color-bg);
+}
+
+.search-icon-leading {
+  margin-right: 12px;
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
+.nav-search-bar input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  width: 100%;
+}
+
+.nav-search-bar input::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* Redesigned Right Section */
+.nav-right-area {
+  display: flex;
+  align-items: center;
+}
+
+.nav-utility-group {
+  display: flex;
+  align-items: center;
+  gap: 20px; /* 20px gap as requested between main elements */
+}
+
+/* Professional Upload Pill */
+.nav-upload-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  color: var(--color-text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nav-upload-pill:hover {
+  background-color: var(--color-border);
+}
+
+/* Profile Image Identity */
+.nav-avatar {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  transition: border-color 0.2s ease;
+  cursor: pointer;
+}
+
+.nav-avatar:hover {
+  border-color: #FFFFFF;
+}
+
+/* Appearance Toggle Item (Dropdown) */
+.dropdown-item-theme {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  text-decoration: none;
+  transition: background-color 0.2s ease;
+}
+
+.dropdown-item-theme:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+
+/* Drawer Toggle Button */
+.drawer-trigger {
+  background: none;
+  border: none;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--transition-fast);
+}
+
+.drawer-trigger:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   GLOBAL NAV DRAWER
+   ───────────────────────────────────────────────────────────────── */
+
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.drawer-open .drawer-backdrop {
+  opacity: 1;
+  visibility: visible;
+}
+
+.nav-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 280px;
+  background-color: var(--color-bg);
+  border-right: 1px solid var(--color-border);
+  z-index: 1001;
+  transform: translateX(-100%);
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 20px 0 50px rgba(0, 0, 0, 0.2);
+}
+
+body.drawer-open .nav-drawer {
+  transform: translateX(0);
+}
+
+.drawer-header {
+  height: var(--nav-height);
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.drawer-nav {
+  flex: 1;
+  padding: 20px 0;
+  overflow-y: auto;
+}
+
+.drawer-group {
+  padding: 0 12px;
+}
+
+.drawer-group__title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  letter-spacing: 0.1em;
+  margin: 20px 0 12px 12px;
+}
+
+.drawer-link {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  margin-bottom: 4px;
+}
+
+.drawer-link:hover {
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+}
+
+.drawer-link.active {
+  background-color: rgba(0, 122, 255, 0.08);
+  color: var(--color-accent);
+}
+
+.drawer-divider {
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  margin: 16px 0;
 }
 
 .logo-icon {
@@ -86,26 +321,54 @@
   width: 100%;
 }
 
-/* ── 4. Section Layout Wrappers ─────────────────────────────── */
+/* ── 4. Workspace Layout Wrappers ────────────────────────────── */
 
-/* Centred column used by login & similar narrow views */
-.section-center {
+.workspace-layout {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: calc(100vh - var(--nav-height) - 60px); /* subtract footer */
-  padding: var(--space-12) var(--space-8);
+  width: 100%;
+  min-height: calc(100vh - var(--nav-height));
 }
 
-/* Generic padded section wrapper used inside dashboard & feed */
-.dashboard-section {
-  max-width: var(--max-width);
-  margin: 0 auto;
-  padding: var(--space-10) var(--space-8);
+.workspace-sidebar {
+  position: fixed;
+  top: var(--nav-height);
+  left: 0;
+  bottom: 0;
+  background-color: var(--color-bg);
+  overflow-y: auto;
+  z-index: 50;
+  transition: transform var(--transition-base);
 }
 
-.dashboard-section + .dashboard-section {
-  padding-top: 0;
+.workspace-sidebar--slim {
+  width: 240px;
+  border-right: 1px solid var(--color-border);
+}
+
+.workspace-main {
+  flex: 1;
+  margin-left: 240px; /* matched to slim sidebar */
+  padding: 40px;
+  background-color: var(--color-bg);
+}
+
+.workspace-layout--dashboard {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 20px;
+  padding: 20px;
+  min-height: calc(100vh - var(--nav-height));
+  align-items: start;
+}
+
+.workspace-layout--dashboard .workspace-sidebar {
+  position: static;
+  width: 100%;
+}
+
+.workspace-layout--dashboard .workspace-main {
+  margin-left: 0;
+  padding: 0;
 }
 
 /* ── 5. Profile Header Layout ───────────────────────────────── */
@@ -124,8 +387,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-6);
-  max-width: var(--max-width);
-  margin: 0 auto;
+  width: 100%;
 }
 
 .avatar-wrapper {
@@ -248,9 +510,8 @@
 /* ── 9. Feed Layout ─────────────────────────────────────────── */
 
 #feed-section {
-  max-width: var(--content-width);
-  margin: 0 auto;
-  padding: var(--space-10) var(--space-8);
+  width: 100%;
+  padding: 40px;
   display: none;           /* overridden by .active */
   flex-direction: column;
   gap: var(--space-6);
@@ -268,12 +529,18 @@
 
 /* ── 10. Login Section Layout ───────────────────────────────── */
 
-#login-section.active {
+#login-section.active,
+#signup-section.active {
+  display: flex;
+}
+
+.section-center {
+  width: 100%;
+  min-height: calc(100vh - var(--nav-height));
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: calc(100vh - var(--nav-height) - 60px);
-  padding: var(--space-12) var(--space-8);
+  padding: var(--space-8);
   background-color: var(--color-bg-secondary);
 }
 

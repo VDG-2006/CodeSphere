@@ -34,7 +34,6 @@ const signInBtn          = document.getElementById('sign-in-btn');
 const signupEmailInput   = document.getElementById('signup-email');
 const signupPasswordInput= document.getElementById('signup-password');
 const signupNameInput    = document.getElementById('signup-name');
-const signupLeetcodeInput= document.getElementById('signup-leetcode');
 const signupErrorEl      = document.getElementById('signup-error');
 const signupBtn          = document.getElementById('signup-btn');
 
@@ -334,7 +333,6 @@ signupBtn?.addEventListener('click', async (e) => {
   const email = signupEmailInput?.value.trim() ?? '';
   const password = signupPasswordInput?.value ?? '';
   const displayName = signupNameInput?.value.trim() ?? '';
-  const leetcodeUsername = signupLeetcodeInput?.value.trim() ?? '';
 
   if (!email || !password || !displayName) {
     showAuthError(signupErrorEl, 'Please fill out all required fields.');
@@ -354,7 +352,7 @@ signupBtn?.addEventListener('click', async (e) => {
       uid,
       email,
       displayName,
-      leetcodeUsername,
+      leetcodeUsername: '',
       streak: 1, // Legacy streak key mentioned by user
       currentStreak:  1,
       lastActiveDate: today,

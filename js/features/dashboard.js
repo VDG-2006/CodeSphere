@@ -1,287 +1,456 @@
 /**
- * dashboard.js — CodeSphere Profile Hub + Progress Dashboard
- *
- * Merged with previous api.js logic for a consolidated data layer.
- * Standardizes IDs with the 'dash-' prefix.
+ * js/features/dashboard.js
+ * Principal Architect Hub — Resilient Multi-Platform Sync Engine
  */
 
 import { auth, db } from '../core/firebase.js';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js';
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.12.0/firebase-auth.js';
 
-// ─────────────────────────────────────────────────────────────
-// Constants
-// ─────────────────────────────────────────────────────────────
-
 const ALFA_API_BASE = 'https://alfa-leetcode-api.onrender.com';
-const MOCK_DATA_URL = './assets/mockData.json';
+const CC_API_BASE = 'https://codechef-api.vercel.app';
+const CF_API_BASE = 'https://codeforces.com/api';
+const SYNC_COOLDOWN = 60 * 1000; // 60 seconds
 
-const DEFAULT_CATEGORIES = [
-  { name: 'Data Structures', color: '#4ade80' },
-  { name: 'Algorithms',      color: '#fbbf24' },
-  { name: 'System Design',   color: '#f87171' },
-];
+export const dashboard = {
+  state: {
+    lastSyncTime: 0,
+    data: null,
+  },
 
-// ─────────────────────────────────────────────────────────────
-// Core Logic: Fetching
-// ─────────────────────────────────────────────────────────────
+  async init() {
+    this.loadState();
+    this.setupEventListeners();
+    this.bindAuthListener();
+    this.startCooldownTimer();
+  },
 
-/**
- * Helper to fetch local mock data for fallbacks.
- */
-async function fetchMockData() {
-  try {
-    const res = await fetch(MOCK_DATA_URL);
-    return await res.json();
-  } catch (err) {
-    console.error('[Dashboard] Mock data fetch failed:', err);
-    return { totalSolved: 0, easySolved: 0, mediumSolved: 0, hardSolved: 0, streak: 0 };
-  }
-}
+  setupEventListeners() {
+    document.getElementById('dash-sync-btn')?.addEventListener('click', () => {
+      this.refreshData();
+    });
 
-/**
- * Sole public entry point for stat rendering.
- * @param {string|null} username - Handle or null for mock fallback.
- */
-export async function fetchLeetCodeStats(username) {
-  const syncBtn = document.getElementById('dash-sync-btn');
-  if (syncBtn) {
-    syncBtn.classList.add('is-syncing');
-    syncBtn.dataset.username = username || '';
-  }
+    // Reactive Settings Integration
+    window.addEventListener('cs-settings-update', (e) => {
+      const { config } = e.detail;
+      this.handleConfigUpdate(config);
+    });
+  },
 
-  setLoadingState(true);
-
-  try {
-    let data = null;
-
-    if (username) {
-      // We use the /solved endpoint for the quickest data retrieval
-      const res = await fetch(`${ALFA_API_BASE}/${encodeURIComponent(username)}/solved`);
-      
-      if (res.ok) {
-        const json = await res.json();
+  bindAuthListener() {
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        let handle = localStorage.getItem('cs_cached_username');
+        if (!handle) {
+          try {
+            const snap = await getDoc(doc(db, 'users', user.uid));
+            handle = snap.exists() ? snap.data().leetcodeUsername : user.displayName?.split(' ')[0].toLowerCase();
+            if (handle) localStorage.setItem('cs_cached_username', handle);
+          } catch (e) { handle = 'dev-user'; }
+        }
         
-        // Alfa API uses "solvedProblem" instead of "totalSolved"
-        data = {
-          totalSolved: json.solvedProblem || 0,
-          easySolved: json.easySolved || 0,
-          mediumSolved: json.mediumSolved || 0,
-          hardSolved: json.hardSolved || 0,
-          streak: 0 // Note: Most proxies don't provide real streaks; we use Firestore for this
-        };
+        // Initial render from cache if available, otherwise fetch
+        if (this.state.data) {
+          this.renderFullDashboard(this.state.data);
+        } else {
+          this.syncAllPlatforms(handle);
+        }
       }
+    });
+  },
+
+  async fetchWithTimeout(url, timeout = 10000) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(id);
+      if (response.status === 402) {
+        const err = new Error('API Quota Exceeded');
+        err.name = 'QuotaError';
+        throw err;
+      }
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return await response.json();
+    } catch (e) {
+      clearTimeout(id);
+      if (e.name === 'AbortError') e.displayMsg = 'Request timed out';
+      else if (e.name === 'TypeError') e.displayMsg = 'Connection Blocked';
+      else if (e.name === 'QuotaError') e.displayMsg = 'API Limit Reached';
+      throw e;
     }
+  },
 
-    if (!data) {
-      console.warn('[Dashboard] API failed or no username. Using mock fallback.');
-      data = await fetchMockData();
-    }
+  getMockFallback(platform, handle) {
+    const mocks = {
+      lcSolved: { totalSolved: 376, easySolved: 120, mediumSolved: 210, hardSolved: 46, ranking: 270937 },
+      lcContest: { contestRating: 1842, contestGlobalRanking: 45213, contestAttend: 24 },
+      lcCalendar: { submissionCalendar: JSON.stringify({ [Math.floor(Date.now()/1000)]: 5, [Math.floor(Date.now()/1000)-86400]: 2 }) },
+      lcRecent: [ { title: "Two Sum", timestamp: Math.floor(Date.now()/1000)-3600 }, { title: "Merge-K-Sorted-Lists", timestamp: Math.floor(Date.now()/1000)-7200 } ],
+      ccProfile: { currentRating: 1420, globalRank: 84213, stars: '3★', totalSolved: 200 },
+      cfInfo: { result: [{ rating: 1195, rank: 'pupil', maxRating: 1250 }] },
+      cfStatus: { result: [{ verdict: 'OK', creationTimeSeconds: Math.floor(Date.now()/1000)-50000 }] }
+    };
+    return mocks[platform] || null;
+  },
 
-    renderDashboard(data);
+  async refreshData() {
+    const now = Date.now();
+    if (now - this.state.lastSyncTime < SYNC_COOLDOWN) return;
+    
+    const handle = localStorage.getItem('cs_cached_username') || 'dev-user';
+    this.syncAllPlatforms(handle);
+  },
 
-  } catch (err) {
-    console.error('[Dashboard] Alfa API Error:', err);
-    // Silent fallback to mock so the UI doesn't break for the user
-    const mock = await fetchMockData();
-    renderDashboard(mock);
-  } finally {
-    setLoadingState(false);
-    if (syncBtn) syncBtn.classList.remove('is-syncing');
-  }
-}
+  async syncAllPlatforms(handle) {
+    const syncBtn = document.getElementById('dash-sync-btn');
+    const cards = document.querySelectorAll('.dash-card');
+    
+    if (syncBtn) syncBtn.disabled = true;
+    cards.forEach(c => c.classList.add('is-syncing'));
 
-// ─────────────────────────────────────────────────────────────
-// Renderer
-// ─────────────────────────────────────────────────────────────
+    const results = await Promise.allSettled([
+      // LeetCode Data
+      this.fetchWithTimeout(`${ALFA_API_BASE}/${handle}/solved`),
+      this.fetchWithTimeout(`${ALFA_API_BASE}/${handle}/contest`),
+      this.fetchWithTimeout(`${ALFA_API_BASE}/${handle}/calendar`),
+      this.fetchWithTimeout(`${ALFA_API_BASE}/${handle}/acSubmission?limit=10`),
+      // CodeChef Data
+      this.fetchWithTimeout(`${CC_API_BASE}/${handle}`),
+      // CodeForces Data
+      this.fetchWithTimeout(`${CF_API_BASE}/user.info?handles=${handle}`),
+      this.fetchWithTimeout(`${CF_API_BASE}/user.status?handle=${handle}&from=1&count=50`)
+    ]);
 
-function renderDashboard(data) {
-  // 1. Animate counters using standardized 'dash-' IDs
-  animateCounter('dash-stat-total',  data.totalSolved  || 0, 2.0);
-  animateCounter('dash-stat-easy',   data.easySolved   || 0, 1.6);
-  animateCounter('dash-stat-medium', data.mediumSolved || 0, 2.0);
-  animateCounter('dash-stat-hard',   data.hardSolved   || 0, 2.5);
-  animateCounter('dash-streak-val',  data.streak       || 0, 1.8);
+    const data = {};
+    const platformKeys = ['lcSolved', 'lcContest', 'lcCalendar', 'lcRecent', 'ccProfile', 'cfInfo', 'cfStatus'];
 
-  // Social & Community Integration
-  if (data.social) {
-    animateCounter('dash-follower-count', Math.round(Math.random() * 5 + 5), 1.0); // mock variations
-    animateCounter('dash-following-count', data.social.following || 10, 1.0);
-  }
-  if (data.community) {
-    animateCounter('dash-views-count', data.community.views || 0, 1.0);
-  }
-
-  // 2. Generate Full 52-Week Heatmap Scaffold
-  renderHeatmap();
-
-  // 3. Competency Matrix
-  renderMatrix(data);
-
-  // 4. Animation entrance (only if section is active)
-  const homeSection = document.getElementById('home-section');
-  if (homeSection?.classList.contains('active')) {
-    setTimeout(runZipperEntrance, 50);
-  }
-}
-
-function renderHeatmap() {
-  const container = document.getElementById('heatmap-placeholder');
-  if (!container) return;
-  // Build 52 columns with 7 rows (364 cells)
-  let html = '';
-  for (let c = 0; c < 52; c++) {
-    html += '<div class="heatmap-col">';
-    for (let r = 0; r < 7; r++) {
-      // Random mock intensity (mostly 0)
-      const lvl = Math.random() > 0.8 ? Math.floor(Math.random() * 4) + 1 : 0;
-      html += `<div class="heatmap-cell" data-lvl="${lvl}"></div>`;
-    }
-    html += '</div>';
-  }
-  container.innerHTML = html;
-}
-
-function renderMatrix(data) {
-  const grid = document.getElementById('competency-matrix-grid');
-  if (!grid) return;
-
-  const categories = data.categories || DEFAULT_CATEGORIES.map((cat, i) => {
-    const solved   = [data.easySolved,  data.mediumSolved,  data.hardSolved ][i] || 0;
-    const catTotal = [data.totalEasy,   data.totalMedium,   data.totalHard  ][i] || 100;
-    return { ...cat, solved, total: catTotal };
-  });
-
-  grid.innerHTML = categories.map(cat => {
-    const pct = Math.min(100, Math.round((cat.solved / cat.total) * 100)) || 0;
-    return `
-      <div class="matrix-item">
-        <div class="matrix-item__header">
-          <span class="matrix-item__name">${escHtml(cat.name)}</span>
-          <span class="matrix-item__meta">
-            <span class="matrix-item__pct">${pct}%</span>
-            &nbsp;·&nbsp; ${cat.solved}/${cat.total}
-          </span>
-        </div>
-        <div class="progress-track">
-          <div class="progress-fill" style="--fill-color:${cat.color};" data-pct="${pct}"></div>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  requestAnimationFrame(() => animateBars());
-}
-
-// ─────────────────────────────────────────────────────────────
-// Animations
-// ─────────────────────────────────────────────────────────────
-
-async function waitForGSAP() {
-  return new Promise(resolve => {
-    if (window.gsap) return resolve(window.gsap);
-    const itv = setInterval(() => { if (window.gsap) { clearInterval(itv); resolve(window.gsap); } }, 50);
-  });
-}
-
-export async function runZipperEntrance() {
-  const gsap = await waitForGSAP();
-  
-  // Slide profile hub from top
-  gsap.fromTo('#profile-hub',
-    { opacity: 0, y: -40 },
-    { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out', clearProps: 'all' }
-  );
-
-  // Stagger stat cards from below
-  gsap.fromTo('.dash-card',
-    { opacity: 0, scale: 0.9, y: 30 },
-    { opacity: 1, scale: 1, y: 0, duration: 0.5, stagger: 0.08, ease: 'back.out(1.7)', clearProps: 'all', delay: 0.1 }
-  );
-
-  // Slide feed/other content from bottom
-  gsap.fromTo('#main-feed-column .card',
-    { opacity: 0, y: 50 },
-    { opacity: 1, y: 0, duration: 0.6, stagger: 0.1, ease: 'power3.out', clearProps: 'all', delay: 0.2 }
-  );
-}
-
-async function animateCounter(id, target, duration = 2) {
-  const el = document.getElementById(id);
-  if (!el) return;
-
-  const gsap = await waitForGSAP();
-  const startValue = parseInt(el.textContent, 10) || 0;
-  const proxy = { val: startValue };
-
-  gsap.to(proxy, {
-    val: target,
-    duration,
-    ease: 'power3.out',
-    onUpdate: () => {
-      const v = Math.round(proxy.val).toLocaleString();
-      if (id === 'dash-streak-val') {
-        const span = el.querySelector('.streak-unit');
-        el.textContent = v;
-        if (span) el.appendChild(span);
+    results.forEach((res, i) => {
+      const key = platformKeys[i];
+      if (res.status === 'fulfilled') {
+        data[key] = res.value;
       } else {
-        el.textContent = v;
+        console.warn(`Sync Error [${key}]:`, res.reason);
+        // Hint about Blocked/CORS
+        const reasonStr = String(res.reason);
+        if (res.reason?.name === 'TypeError' || reasonStr.includes('Failed to fetch') || reasonStr.includes('NetworkError')) {
+           this.showSyncHint('Connections Blocked by Client/CORS');
+        } else if (res.reason?.name === 'QuotaError') {
+           this.showSyncHint('Cloud API Limit Reached (402)');
+        }
+        
+        // Load fallback mock data so UI isn't empty
+        data[key] = this.getMockFallback(key, handle);
+      }
+    });
+
+    this.state.data = data;
+    this.state.lastSyncTime = Date.now();
+    this.saveState();
+    this.renderFullDashboard(data);
+    this.startCooldownTimer();
+
+    cards.forEach(c => c.classList.remove('is-syncing'));
+  },
+
+  showSyncHint(msg) {
+    const status = document.getElementById('sync-status-msg');
+    if (status) {
+      status.textContent = msg;
+      status.style.color = '#ff6b6b';
+      setTimeout(() => { if (status.textContent === msg) status.textContent = ''; }, 6000);
+    }
+  },
+
+  renderFullDashboard(data) {
+    // 1. Unified Submissions (Fusion)
+    const fusedRecent = this.fuseSubmissions(data.lcRecent, data.cfStatus);
+    this.renderRecentAC(fusedRecent);
+
+    // 2. Platform Solved Counts (Aggregator)
+    const counts = this.calculateSolvedCounts(data);
+    this.updateSidebarAggregator(counts, data);
+
+    // 3. Platform Cards
+    this.renderLeetCodeCards(data.lcSolved, data.lcContest);
+    this.renderCodeChefCard(data.ccProfile);
+    this.renderCodeForcesCard(data.cfInfo, counts.cf);
+
+    // 4. Unified Heatmap
+    this.renderFusedHeatmap(data.lcCalendar, data.cfStatus);
+  },
+
+  fuseSubmissions(lcRecent, cfStatus) {
+    let combined = [];
+
+    // Process LC
+    if (lcRecent?.submission) {
+      combined = lcRecent.submission.map(s => ({
+        title: s.title,
+        timestamp: parseInt(s.timestamp),
+        platform: 'LC'
+      }));
+    }
+
+    // Process CF (Filtered for OK)
+    if (cfStatus?.result) {
+      const cfSolved = cfStatus.result
+        .filter(s => s.verdict === 'OK')
+        .map(s => ({
+          title: s.problem.name,
+          timestamp: s.creationTimeSeconds,
+          platform: 'CF'
+        }));
+      combined = [...combined, ...cfSolved];
+    }
+
+    return combined.sort((a, b) => b.timestamp - a.timestamp).slice(0, 5);
+  },
+
+  calculateSolvedCounts(data) {
+    const lc = data.lcSolved?.solvedProblem || 0;
+    const cc = data.ccProfile?.totalSolved || 0;
+    
+    // CF Deep Sync logic
+    let cf = 0;
+    if (data.cfStatus?.result) {
+      const unique = new Set();
+      data.cfStatus.result.forEach(s => {
+        if (s.verdict === 'OK') unique.add(`${s.problem.contestId}-${s.problem.index}`);
+      });
+      cf = unique.size;
+    }
+
+    return { lc, cc, cf, total: lc + cc + cf };
+  },
+
+  updateSidebarAggregator(counts, data) {
+    const totalEl = document.getElementById('sidebar-total-solved');
+    const lcEl = document.getElementById('sidebar-lc-solved');
+    const ccEl = document.getElementById('sidebar-cc-solved');
+    const cfEl = document.getElementById('sidebar-cf-solved');
+
+    if (totalEl) totalEl.textContent = counts.total || '--';
+    if (lcEl) lcEl.textContent = counts.lc || '--';
+    if (ccEl) ccEl.textContent = counts.cc || '--';
+    if (cfEl) cfEl.textContent = counts.cf || '--';
+    
+    // Identity Rank Fallback
+    const rankEl = document.getElementById('dash-rank');
+    if (rankEl) rankEl.textContent = data?.lcSolved?.ranking?.toLocaleString() || '--';
+  },
+
+  renderLeetCodeCards(solved, contest) {
+    // Tier 1
+    const rat = document.getElementById('dash-contest-rating');
+    const rnk = document.getElementById('dash-contest-rank');
+    const att = document.getElementById('dash-contest-attended');
+    if (rat) rat.textContent = Math.round(contest?.contestRating || 0) || '--';
+    if (rnk) rnk.textContent = contest?.contestGlobalRanking?.toLocaleString() || '--';
+    if (att) att.textContent = contest?.contestAttend || '--';
+
+    // Tier 2 Donut
+    if (solved) {
+      const total = solved.solvedProblem || 1;
+      const easy = solved.easySolved || 0;
+      const med = solved.mediumSolved || 0;
+      const easyPct = (easy / total) * 100;
+      const medPct = (med / total) * 100;
+      
+      const donut = document.querySelector('.dash-card.card--solved .donut-chart-container');
+      if (donut) {
+        const eEnd = easyPct;
+        const mEnd = easyPct + medPct;
+        donut.style.background = `conic-gradient(var(--color-easy) 0% ${eEnd}%, var(--color-medium) ${eEnd}% ${mEnd}%, var(--color-hard) ${mEnd}% 100%)`;
+      }
+      const ct = document.getElementById('dash-total-solved');
+      if (ct) ct.textContent = solved.solvedProblem;
+      if (document.getElementById('dash-easy-count')) document.getElementById('dash-easy-count').textContent = easy;
+      if (document.getElementById('dash-medium-count')) document.getElementById('dash-medium-count').textContent = med;
+      if (document.getElementById('dash-hard-count')) document.getElementById('dash-hard-count').textContent = solved.hardSolved || 0;
+    }
+  },
+
+  renderCodeChefCard(profile) {
+    const rat = document.getElementById('cc-rating');
+    const rnk = document.getElementById('cc-rank');
+    const att = document.getElementById('cc-attended');
+    const tot = document.getElementById('cc-total');
+
+    if (rat) rat.textContent = profile?.currentRating || '--';
+    if (rnk) rnk.textContent = profile?.globalRank || '--';
+    if (att) att.textContent = profile?.stars ?? '--';
+    if (tot) tot.textContent = profile?.totalSolved ?? '--';
+    
+    if (profile) {
+      const donut = document.querySelectorAll('.dash-card.card--solved .donut-chart-container')[1];
+      if (donut) donut.style.background = `conic-gradient(var(--color-accent) 0% 100%)`;
+    }
+  },
+
+  renderCodeForcesCard(info, solved) {
+    const res = info?.result ? info.result[0] : null;
+    const rat = document.getElementById('cf-rating');
+    const rnk = document.getElementById('cf-rank');
+    const att = document.getElementById('cf-attended');
+    const tot = document.getElementById('cf-total');
+
+    if (rat) rat.textContent = res?.rating || '--';
+    if (rnk) rnk.textContent = res?.rank || '--';
+    if (att) att.textContent = res?.maxRating || '--';
+    if (tot) tot.textContent = solved || '--';
+
+    if (res) {
+       const donut = document.querySelectorAll('.dash-card.card--solved .donut-chart-container')[2];
+       if (donut) donut.style.background = `conic-gradient(#1A8CD8 0% 100%)`;
+    }
+  },
+
+  renderFusedHeatmap(lcCal, cfStatus) {
+    const wrapper = document.getElementById('heatmap-main-wrapper');
+    if (!wrapper) return;
+    wrapper.innerHTML = '';
+
+    // Merge Calendar Logic
+    const calendar = {};
+    const merge = (ts, count) => {
+      const d = new Date(ts * 1000);
+      const utc = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 1000;
+      calendar[utc] = (calendar[utc] || 0) + count;
+    };
+
+    if (lcCal?.submissionCalendar) {
+      try {
+        const parsed = typeof lcCal.submissionCalendar === 'string' ? JSON.parse(lcCal.submissionCalendar) : lcCal.submissionCalendar;
+        Object.entries(parsed || {}).forEach(([t, c]) => merge(parseInt(t), c));
+      } catch (e) {
+        console.warn('Heatmap: Parse error on LC calendar', e);
       }
     }
-  });
-}
-
-function animateBars() {
-  document.querySelectorAll('.progress-fill').forEach((fill, i) => {
-    const pct = fill.dataset.pct || 0;
-    if (window.gsap) {
-      window.gsap.fromTo(fill, { width: '0%' }, { width: `${pct}%`, duration: 1.5, delay: i * 0.1, ease: 'power3.out' });
-    } else {
-      fill.style.width = `${pct}%`;
+    if (cfStatus?.result) {
+      cfStatus.result.forEach(s => {
+        if (s.verdict === 'OK') merge(s.creationTimeSeconds, 1);
+      });
     }
-  });
+
+    const monthNames = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr']; // Rolling 12
+    const today = new Date();
+    
+    for (let i = 0; i < 12; i++) {
+      const d = new Date();
+      d.setMonth(today.getMonth() - (11 - i));
+      const m = d.getMonth();
+      const y = d.getFullYear();
+
+      const block = document.createElement('div');
+      block.className = 'month-block';
+      
+      const label = document.createElement('div');
+      label.textContent = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m];
+      label.style.cssText = 'font-size: 10px; color: var(--color-text-muted); text-align: center; margin-bottom: 4px;';
+      block.appendChild(label);
+
+      const grid = document.createElement('div');
+      grid.style.cssText = 'display: grid; grid-template-rows: repeat(7, 10px); grid-auto-flow: column; gap: 3px;';
+      
+      const days = new Date(y, m + 1, 0).getDate();
+      for (let day = 1; day <= days; day++) {
+        const cell = document.createElement('div');
+        const utc = Date.UTC(y, m, day) / 1000;
+        const count = calendar[utc] || 0;
+        const level = count > 0 ? Math.min(Math.floor(count / 2) + 1, 4) : 0;
+        
+        cell.className = 'heatmap-cell';
+        cell.setAttribute('data-level', level);
+        grid.appendChild(cell);
+      }
+      block.appendChild(grid);
+      wrapper.appendChild(block);
+    }
+
+    const yrFull = document.getElementById('dash-submissions-year');
+    if (yrFull) yrFull.textContent = Object.values(calendar).reduce((a,b) => a+b, 0);
+  },
+
+  renderRecentAC(items) {
+    const list = document.getElementById('dash-recent-ac');
+    if (!list) return;
+    list.innerHTML = items.map(item => `
+      <li class="recent-ac-item">
+        <span class="ac-title" title="${item.title}">${item.title}</span>
+        <span class="ac-time mono-val">${this.formatTime(item.timestamp)}</span>
+      </li>
+    `).join('');
+  },
+
+  formatTime(unix) {
+    const diff = Math.floor((Date.now() / 1000) - unix);
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+    return `${Math.floor(diff/86400)}d ago`;
+  },
+
+  startCooldownTimer() {
+    const btn = document.getElementById('dash-sync-btn');
+    const msg = document.getElementById('sync-status-msg');
+    if (!btn || !msg) return;
+
+    const update = () => {
+      const remaining = Math.ceil((SYNC_COOLDOWN - (Date.now() - this.state.lastSyncTime)) / 1000);
+      if (remaining > 0) {
+        btn.disabled = true;
+        msg.textContent = `SYNCED ${remaining}S AGO`;
+        requestAnimationFrame(update);
+      } else {
+        btn.disabled = false;
+        msg.textContent = '';
+      }
+    };
+    update();
+  },
+
+  saveState() {
+    localStorage.setItem('cs_dash_state', JSON.stringify(this.state));
+  },
+
+  loadState() {
+    const saved = localStorage.getItem('cs_dash_state');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      this.state = parsed;
+    }
+  },
+
+  handleConfigUpdate(config) {
+    // 1. Identity Mirroring
+    const nameEl = document.getElementById('dash-name');
+    const handleEl = document.getElementById('dash-handle');
+    const avatarEl = document.getElementById('dash-avatar');
+    
+    if (nameEl && config.profile.name) nameEl.textContent = config.profile.name;
+    if (handleEl && config.profile.handle) handleEl.textContent = `@${config.profile.handle}`;
+    if (avatarEl && config.profile.avatar) avatarEl.src = config.profile.avatar;
+
+    // 2. Dash Tiers Visibility
+    const tiers = config.appearance.tiers;
+    document.querySelector('.dashboard-row--tier1').style.display = tiers.rating ? 'grid' : 'none';
+    document.querySelector('.dashboard-row--tier2').style.display = tiers.solved ? 'grid' : 'none';
+    document.querySelector('.dashboard-row--tier3').style.display = tiers.heatmap ? 'grid' : 'none';
+    document.querySelector('.dashboard-row--tier4').style.display = tiers.recent ? 'grid' : 'none';
+
+    // 3. Handle Sync - If handles changed, re-sync data
+    const currentHandle = localStorage.getItem('cs_cached_username');
+    if (config.accounts.leetcode && config.accounts.leetcode !== currentHandle) {
+      localStorage.setItem('cs_cached_username', config.accounts.leetcode);
+      this.syncAllPlatforms(config.accounts.leetcode);
+    }
+  }
+};
+
+// Auto-init
+if (document.getElementById('profile-section')) {
+  dashboard.init();
 }
 
-// ─────────────────────────────────────────────────────────────
-// Init
-// ─────────────────────────────────────────────────────────────
-
-function setGreeting(displayName) {
-  const el = document.getElementById('hub-greeting');
-  if (!el) return;
-  const h = new Date().getHours();
-  const greeting = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
-  el.textContent = `${greeting}, ${(displayName || 'Coder').split(' ')[0]}! 👋`;
-}
-
-function initDashboard() {
-  if (!document.getElementById('profile-hub')) return;
-
-  window.CodeSphere = window.CodeSphere || {};
-  window.CodeSphere.dashboard = {
-    render: (user) => fetchLeetCodeStats(user),
-    setGreeting
-  };
-
-  document.getElementById('dash-sync-btn')?.addEventListener('click', (e) => {
-    fetchLeetCodeStats(e.currentTarget.dataset.username);
-  });
-
-  onAuthStateChanged(auth, async (u) => {
-    if (!u) return;
-    const snap = await getDoc(doc(db, 'users', u.uid));
-    const p = snap.exists() ? snap.data() : null;
-    setGreeting(p?.displayName || u.displayName);
-    fetchLeetCodeStats(p?.leetcodeUsername || null);
-  });
-}
-
-function setLoadingState(isLoading) {
-  document.querySelectorAll('.dash-card').forEach(c => c.classList.toggle('is-loading', isLoading));
-}
-
-function escHtml(s) {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-initDashboard();

@@ -11,7 +11,7 @@
   <!-- Google Fonts: Inter (UI) + Merriweather Italic (accent) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Merriweather:ital@1&display=swap"
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;700&family=Merriweather:ital@1&display=swap"
     rel="stylesheet" />
 
   <!-- Stylesheets -->
@@ -20,6 +20,7 @@
   <link rel="stylesheet" href="css/components.css" />
   <link rel="stylesheet" href="css/dark.css" />
   <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="css/settings.css" />
 
   <!-- GSAP Animation Library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
@@ -33,6 +34,9 @@
   <script type="module" src="js/features/dashboard.js" defer></script>
   <script type="module" src="js/features/feed.js" defer></script>
   <script type="module" src="js/features/hub.js" defer></script>
+  <script type="module" src="js/features/home.js" defer></script>
+  <script type="module" src="js/core/config.js" defer></script>
+  <script type="module" src="js/features/settings.js" defer></script>
   <script type="module" src="js/ui/nav.js" defer></script>
 </head>
 
@@ -45,74 +49,84 @@
     -->
   <header class="site-header" role="banner" id="site-header">
     <nav class="global-nav" aria-label="Primary navigation">
+      
+      <!-- Left: Branding Group -->
+      <div class="nav-left-group">
+        <button id="nav-drawer-btn" class="drawer-trigger" aria-label="Open Navigation Menu">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+        <a href="/" class="nav-logo" aria-label="CodeSphere home" data-route="home">
+          <svg class="nav-logo-icon" width="28" height="28" viewBox="0 0 32 32" fill="none">
+            <circle cx="16" cy="16" r="14" stroke="url(#logo-grad)" stroke-width="2.5" />
+            <path d="M16 2L16 30M2 16L30 16M6 6L26 26M6 26L26 6" stroke="url(#logo-grad)" stroke-width="1.5" opacity="0.6"/>
+            <defs>
+              <linearGradient id="logo-grad" x1="2" y1="2" x2="30" y2="30" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#00F2FE" />
+                <stop offset="1" stop-color="#007AFF" />
+              </linearGradient>
+            </defs>
+          </svg>
+          <span class="logo-text">CodeSphere</span>
+        </a>
+      </div>
 
-      <!-- Left Side: App Logo -->
-      <a href="/" class="nav-logo" aria-label="CodeSphere home" data-route="landing" id="main-logo">
-        <span class="logo-icon" aria-hidden="true">&lt;/&gt;</span>
-        <span class="logo-text">CodeSphere</span>
-      </a>
-
-      <!-- Center: Search area (Only for Authenticated Users) -->
+      <!-- Center: Unified Search -->
       <div class="auth-only nav-center-area">
-        <div class="nav-search" role="search">
-          <label for="global-search" class="sr-only">Search</label>
-          <span class="search-icon" aria-hidden="true">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-          </span>
-          <input type="text" id="global-search" class="nav-search__input"
-            placeholder="Search problems, patterns, or creators..." aria-label="Global search" />
+        <div class="nav-search-bar" role="search">
+           <svg class="search-icon-leading" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="global-search" placeholder="Search CodeSphere..." aria-label="Search" />
         </div>
       </div>
 
-      <!-- Right Side: Appearance, Streaks, Profile -->
+      <!-- Right: Identity & Actions -->
       <div class="nav-right-area">
-
-        <!-- Appearance Toggle (Sliding Switch) -->
-        <div class="theme-switch-wrapper">
-          <label class="theme-switch" for="theme-toggle">
-            <input type="checkbox" id="theme-toggle" />
-            <div class="slider-round">
-              <div class="track-icons" aria-hidden="true">
-                <span class="nav-icon-sun"></span>
-                <span class="nav-icon-moon"></span>
-              </div>
-              <div class="slider-handle"></div>
-            </div>
-          </label>
-        </div>
-
-        <!-- Authenticated Utilities -->
         <div class="auth-only nav-utility-group">
-          <!-- Streak Counter -->
-          <div class="nav-streak">
-            🔥 <span id="nav-streak-count">0</span>
-          </div>
+          <!-- Text-labeled Upload Button -->
+          <button id="nav-upload-pill" class="nav-upload-pill" title="Upload New Content">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 7l-7 5 7 5V7z"></path>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+              <line x1="9" y1="9" x2="9" y2="15"></line>
+              <line x1="6" y1="12" x2="12" y2="12"></line>
+            </svg>
+            <span>Upload</span>
+          </button>
 
-          <!-- Profile Trigger -->
-          <div id="nav-profile-trigger" class="profile-trigger">
-            <img class="nav-avatar" id="nav-avatar" src="" alt="Your avatar" width="36" height="36" />
+          <!-- Notifications Bell -->
+          <button class="nav-icon-btn" title="Notifications">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+          </button>
 
+          <!-- Profile Image Identity -->
+          <div id="nav-profile-trigger" class="profile-avatar-trigger">
+            <img class="nav-avatar" id="nav-avatar" src="https://ui-avatars.com/api/?name=DV&background=var--color-bg-tertiary&color=fff" alt="Profile" />
             <div id="profile-dropdown" class="profile-dropdown-menu">
-              <a href="#" id="nav-profile-link" data-route="profile">👤 Profile</a>
-              <a href="#" data-route="settings">⚙️ Settings</a>
+              <a href="#" id="nav-profile-link" data-route="profile">My Profile</a>
+              <a href="#" id="theme-toggle-item" class="dropdown-item-theme">
+                <span class="theme-text-slot">Appearance: Dark</span>
+              </a>
+              <a href="#" id="nav-settings-link">Settings</a>
               <hr class="nav-divider">
-              <a href="#" id="logout-btn">🚪 Logout</a>
+              <a href="#" id="logout-btn">Sign Out</a>
             </div>
           </div>
         </div>
 
         <!-- Guest Buttons -->
         <div class="unauth-only nav-utility-group">
-          <button class="btn btn-ghost" type="button" id="nav-login-btn" data-route="login">Log In</button>
-          <button class="btn btn-primary" type="button" id="nav-signup-btn" data-route="signup">Sign Up</button>
+          <button class="btn btn-ghost" data-route="login">Sign In</button>
         </div>
-
       </div>
-
     </nav>
   </header>
 
@@ -299,14 +313,8 @@
                 minlength="8" />
             </div>
 
-            <div class="form-group">
-              <label class="form-label" for="signup-leetcode">
-                LeetCode Username
-                <span class="form-label__optional">(optional)</span>
-              </label>
-              <input class="form-input input-field" type="text" id="signup-leetcode" name="leetcodeUsername"
-                placeholder="Your LeetCode handle" autocomplete="off" maxlength="40" />
-            </div>
+<!-- Removed optional LeetCode field as per user request -->
+
             <div class="form-error" id="signup-error" role="alert" aria-live="polite" hidden></div>
             <div class="auth-actions">
               <button class="btn btn-primary" type="submit" id="signup-btn" data-action="create-account">Create
@@ -329,325 +337,297 @@
     <!-- ============================================================ -->
     <!-- SECTION 4: HOME — Profile Hub + Activity Feed               -->
     <!-- ============================================================ -->
-    <section id="home-section" class="page-section" aria-label="Home — Profile Hub and Activity Feed"
-      style="display:none;">
-      <div class="home-single-col">
+    <section id="home-section" class="page-section" aria-label="Home — Discovery Feed" style="display:none;">
+      <div class="workspace-layout">
+        
+        <!-- Sidebar (240px Fixed) -->
+        <aside class="workspace-sidebar workspace-sidebar--slim">
+          <nav class="sidebar-nav">
+            <div class="sidebar-group">
+              <a href="#" class="sidebar-link active" data-route="home">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 12px;"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                <span>Home</span>
+              </a>
+              <a href="#" class="sidebar-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 12px;"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                <span>Trending</span>
+              </a>
+              <a href="#" class="sidebar-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 12px;"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg>
+                <span>Subscriptions</span>
+              </a>
+            </div>
+            
+            <hr class="sidebar-divider">
+            
+            <div class="sidebar-group">
+              <div class="sidebar-group__title">Categories</div>
+              <a href="#" class="sidebar-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 12px;"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                <span>Java</span>
+              </a>
+              <a href="#" class="sidebar-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 12px;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 16 16 12 12 8"></polyline><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+                <span>DSA</span>
+              </a>
+              <a href="#" class="sidebar-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 12px;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+                <span>WebDev</span>
+              </a>
+              <a href="#" class="sidebar-link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 12px;"><path d="M12 2a2 2 0 0 1 2 2c0 1.1-.9 2-2 2a2 2 0 0 1-2-2c0-1.1.9-2 2-2z"></path><path d="M12 6v16"></path><path d="M8 10h8"></path></svg>
+                <span>AI</span>
+              </a>
+            </div>
+          </nav>
+        </aside>
 
-        <!-- ══════════════════════════════════════════════════════ -->
-        <!--  PROFILE HUB HEADER                                    -->
-        <!-- ══════════════════════════════════════════════════════ -->
-        <div id="profile-hub" class="profile-hub">
+        <!-- Main Feed (Fluid Grid) -->
+        <main class="workspace-main">
+          <div id="home-feed-grid" class="video-grid">
+            <!-- Rendered via js/features/home.js -->
+            <div class="grid-skeleton">
+              <div class="skeleton-card shimmer"></div>
+              <div class="skeleton-card shimmer"></div>
+              <div class="skeleton-card shimmer"></div>
+              <div class="skeleton-card shimmer"></div>
+            </div>
+          </div>
+        </main>
 
-          <!-- Hub Area Header -->
-          <h2 class="section-title main-hub-title" style="text-align: center; font-size: 1.5rem; margin-bottom: 24px; border: none; letter-spacing: normal;">📊 My Profile</h2>
+      </div>
+    </section>
 
-          <!-- Hub Content Panes -->
-          <div id="hub-display" class="hub-content" style="padding-top: 16px;">
-
-            <!-- ── PROGRESS VIEW (25/75 SPLIT) ── -->
-            <div id="progress-view" class="hub-pane active">
-              <div class="profile-split-layout">
-
-                <!-- LEFT SIDEBAR (25%) -->
-                <aside class="profile-sidebar">
-                  
-                  <!-- 1. Identity & Social -->
-                  <div class="dash-card identity-card" style="text-align: center; align-items: center;">
-                    <div class="identity-header" style="flex-direction: column; gap: 8px;">
-                      <img class="neon-avatar" id="user-avatar" src="https://ui-avatars.com/api/?name=Guest&background=1a1a1a&color=fff&size=80" alt="User avatar" style="margin-bottom: 8px;">
-                      <div class="identity-info" style="align-items: center; display: flex; flex-direction: column;">
-                        <h1 class="neon-name" id="user-name">Guest User</h1>
-                        <p class="neon-handle" id="user-handle">@guest</p>
-                        <div class="neon-rank">Rank <span class="mono-text">270,937</span></div>
-                      </div>
-                    </div>
-                    
-                    <p class="neon-specialty">Coder</p>
-                    
-                    <div class="follower-stats" style="justify-content: center; gap: 16px; margin: 8px 0;">
-                      <span><strong class="mono-text" id="dash-follower-count">10</strong> Following</span>
-                      <span><strong class="mono-text" id="dash-following-count">6</strong> Followers</span>
-                    </div>
-                    
-                    <button class="btn-edit-profile" data-target="settings-view" onclick="document.querySelector('[data-target=\\'settings-view\\']').click()">Edit Profile</button>
-                    
-                    <div class="location-info">
-                      <div class="loc-item"><span class="icon">📍</span> India</div>
-                      <div class="loc-item"><span class="icon">🎓</span> CVR College of Engineering</div>
-                    </div>
-                    
-                    <div class="social-links">
-                      <a href="#" class="social-icon github" aria-label="GitHub"></a>
-                      <a href="#" class="social-icon linkedin" aria-label="LinkedIn"></a>
-                      <a href="#" class="social-icon twitter" aria-label="X/Twitter"></a>
-                    </div>
-                  </div>
-
-                  <!-- 2. Community Stats -->
-                  <div class="dash-card sidebar-section">
-                    <h3 class="section-title">Community Stats</h3>
-                    <ul class="community-list">
-                      <li><span class="icon blue-icon">👁️</span> Views <span class="sub"><strong class="mono-text" id="dash-views-count">0</strong> Last week 0</span></li>
-                      <li><span class="icon blue-icon">✔️</span> Solution <span class="sub"><strong class="mono-text">0</strong> Last week 0</span></li>
-                      <li><span class="icon blue-icon">💬</span> Discuss <span class="sub"><strong class="mono-text">0</strong> Last week 0</span></li>
-                      <li><span class="icon orange-icon" style="color:var(--color-streak)">⭐</span> Reputation <span class="sub"><strong class="mono-text">0</strong> Last week 0</span></li>
-                    </ul>
-                  </div>
-
-                  <!-- 3. Languages -->
-                  <div class="dash-card sidebar-section">
-                    <h3 class="section-title">Languages</h3>
-                    <div class="lang-progress">
-                      <div class="lang-meta"><span>Java</span> <span class="mono-text count-text">376 problems solved</span></div>
-                      <div class="progress-bar-container"><div class="progress-bar fill-java" style="width: 80%;"></div></div>
-                    </div>
-                    <div class="lang-progress">
-                      <div class="lang-meta"><span>Python3</span> <span class="mono-text count-text">65 problems solved</span></div>
-                      <div class="progress-bar-container"><div class="progress-bar fill-python" style="width: 30%;"></div></div>
-                    </div>
-                    <div class="lang-progress">
-                      <div class="lang-meta"><span>C#</span> <span class="mono-text count-text">22 problems solved</span></div>
-                      <div class="progress-bar-container"><div class="progress-bar fill-cs" style="width: 10%;"></div></div>
-                    </div>
-                    <button class="btn-link btn-show-more">Show more</button>
-                  </div>
-
-                  <!-- 4. Skills -->
-                  <div class="dash-card sidebar-section">
-                    <h3 class="section-title">Skills</h3>
-                    
-                    <div class="skill-tier">
-                      <h4 class="tier-level advanced"><span class="dot advanced"></span> Advanced</h4>
-                      <div class="tag-list">
-                        <span class="neon-tag outline-tag">Dynamic Programming <span class="tag-count mono-text">x30</span></span>
-                        <span class="neon-tag outline-tag">Monotonic Stack <span class="tag-count mono-text">x17</span></span>
-                        <span class="neon-tag outline-tag">Divide and Conquer <span class="tag-count mono-text">x15</span></span>
-                      </div>
-                      <button class="btn-link btn-show-more">Show more</button>
-                    </div>
-
-                    <div class="skill-tier">
-                      <h4 class="tier-level intermediate"><span class="dot intermediate"></span> Intermediate</h4>
-                      <div class="tag-list">
-                        <span class="neon-tag outline-tag">Hash Table <span class="tag-count mono-text">x75</span></span>
-                        <span class="neon-tag outline-tag">Math <span class="tag-count mono-text">x71</span></span>
-                        <span class="neon-tag outline-tag">Bit Manipulation <span class="tag-count mono-text">x51</span></span>
-                      </div>
-                      <button class="btn-link btn-show-more">Show more</button>
-                    </div>
-                    
-                    <div class="skill-tier">
-                      <h4 class="tier-level fundamental"><span class="dot fundamental"></span> Fundamental</h4>
-                    </div>
-                  </div>
-
-                </aside>
-
-                <!-- RIGHT MAIN AREA (75%) -->
-                <main class="profile-main">
-                  
-                  <button id="dash-sync-btn" class="btn-sync hub-sync-btn" style="align-self: flex-end; margin-bottom: 12px; display: inline-flex;" title="Re-sync LeetCode stats">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M23 4v6h-6M1 20v-6h6" />
-                      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-                    </svg> Sync
-                  </button>
-
-                  <!-- Power Grid (3 Columns) -->
-                  <div class="dashboard-grid leetcode-power-grid">
-                    
-                    <!-- Card 1: Contest -->
-                    <article class="dash-card contest-card">
-                      <div class="dash-card__header">Contest Rating</div>
-                      <div class="neon-stat-value">1,720</div>
-                      <div class="contest-meta" style="font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 4px; display: flex; flex-direction: column; gap: 2px;">
-                        <span>Global Ranking <strong style="color: var(--color-text-primary);">105,123</strong></span>
-                        <span>Attended <strong style="color: var(--color-text-primary);">13</strong></span>
-                        <span>Top <strong style="color: var(--color-medium);">11.87%</strong></span>
-                      </div>
-                      <div class="glow-wrap">
-                        <svg viewBox="0 0 100 30" width="100%" height="50" preserveAspectRatio="none">
-                          <path d="M0 25 L10 24 L20 20 L30 22 L40 18 L50 15 L60 17 L70 12 L80 14 L90 8 L100 10" fill="none" stroke="var(--color-accent)" stroke-width="2"/>
-                          <circle cx="100" cy="10" r="2.5" fill="#fff" />
-                        </svg>
-                      </div>
-                    </article>
-                    
-                    <!-- Card 2: Solved Donut and breakdown -->
-                    <article class="dash-card solved-card-split" style="display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 12px;">
-                      <div class="donut-display" style="display: flex; justify-content: center;">
-                        <div class="donut-ring">
-                          <div class="donut-text"><span id="dash-stat-total" style="color: var(--color-text-primary); font-size: 1.25rem;">0</span><br><span style="font-size: 0.7rem; color: var(--color-text-secondary);">/3902 Solved</span></div>
-                        </div>
-                      </div>
-                      <div class="solved-breakdown" style="display: flex; flex-direction: column; gap: 8px;">
-                        <div class="breakdown-item easy"><span class="label">Easy</span> <span class="val mono-text"><strong id="dash-stat-easy">0</strong> <span style="font-size: 0.7rem; color: var(--color-text-secondary);">Beats 85%</span></span></div>
-                        <div class="breakdown-item medium"><span class="label">Med.</span> <span class="val mono-text"><strong id="dash-stat-medium">0</strong> <span style="font-size: 0.7rem; color: var(--color-text-secondary);">Beats 60%</span></span></div>
-                        <div class="breakdown-item hard"><span class="label">Hard</span> <span class="val mono-text"><strong id="dash-stat-hard">0</strong> <span style="font-size: 0.7rem; color: var(--color-text-secondary);">Beats 12%</span></span></div>
-                      </div>
-                    </article>
-
-                    <!-- Card 3: Badges -->
-                    <article class="dash-card badges-card">
-                      <div class="dash-card__header">Badges <span class="badge-count mono-text">2</span></div>
-                      <div class="badges-display" style="justify-content: center;">
-                        <img src="https://assets.leetcode.com/static_assets/public/images/badges/2024/gif/2024-100.gif" alt="100 Days Badge" style="width: 50px; height: 50px;" />
-                      </div>
-                      <div class="badge-label" style="text-align: center;">
-                        <span class="label-sub">Most Recent Badge</span><br>
-                        <span class="label-main">100 Days Badge 2026</span>
-                      </div>
-                    </article>
-                  </div>
-
-                  <!-- Activity Pulse Heatmap -->
-                  <div class="dash-card activity-pulse-card">
-                    <div class="pulse-header">
-                      <span><strong class="mono-text">851</strong> submissions in the past one year</span>
-                      <span style="font-size:0.8rem; color:var(--color-text-secondary);">Max streak: <strong class="mono-text" id="dash-streak-val" style="color:var(--color-text-primary);">0</strong></span>
-                    </div>
-                    <div class="heatmap-grid" id="heatmap-placeholder">
-                      <!-- Scaffolded 52 Columns filled in via JS or visually -->
-                    </div>
-                  </div>
-
-                  <!-- Recent AC List -->
-                  <div class="dash-card recent-ac-card">
-                    <div class="dna-right-header">
-                      <h3 class="section-title" style="margin:0;">Recent AC</h3>
-                      <button class="btn-link view-all" style="font-size: 13px;">View all submissions &gt;</button>
-                    </div>
-                    <ul class="activity-list">
-                      <li>
-                        <span class="problem-title">Minimum Absolute Distance Between Mirror Pairs</span> 
-                        <span class="time mono-text">a day ago</span>
-                      </li>
-                      <li>
-                        <span class="problem-title">Maximum Twin Sum of a Linked List</span> 
-                        <span class="time mono-text">3 days ago</span>
-                      </li>
-                      <li>
-                        <span class="problem-title">Continuous Subarrays</span> 
-                        <span class="time mono-text">3 days ago</span>
-                      </li>
-                      <li>
-                        <span class="problem-title">Removing Stars From a String</span> 
-                        <span class="time mono-text">3 days ago</span>
-                      </li>
-                    </ul>
-                  </div>
-
-                </main>
+    <!-- ============================================================ -->
+    <!-- SECTION 5: PROFILE — LeetCode Dashboard                     -->
+    <!-- ============================================================ -->
+    <section id="profile-section" class="page-section" aria-label="Profile — LeetCode Dashboard" style="display:none;">
+      <div class="workspace-layout workspace-layout--dashboard">
+        
+        <!-- Sidebar (320px Fixed) -->
+        <aside class="workspace-sidebar">
+          <div class="dash-sidebar-content">
+            <!-- Identity Header -->
+            <div class="profile-identity" style="text-align: center; display: flex; flex-direction: column; align-items: center; padding: 20px 0;">
+              <img id="dash-avatar" src="https://ui-avatars.com/api/?name=DV&background=var--color-bg-tertiary&color=fff" alt="User Avatar" class="profile-avatar-largeShimmer" style="width: 100px; height: 100px; border-radius: 12px; margin-bottom: 20px;">
+              <div class="profile-info-dense" style="width: 100%;">
+                <h1 id="dash-name" class="profile-name-bold" style="font-size: 20px; margin-bottom: 4px;">Dinesh Goud Vootukuri</h1>
+                <p id="dash-handle" class="profile-handle-muted" style="margin-bottom: 8px;">@itz_vdg_01</p>
+                <div class="profile-rank-badge" style="margin-bottom: 8px;">
+                  Rank <span id="dash-rank" class="mono-val" style="font-weight: bold;">270,937</span>
+                </div>
+                <div class="profile-subscribers" style="color: var(--color-text-secondary); font-size: 13px;">
+                  6 Subscribers
+                </div>
               </div>
-            </div><!-- /progress-view -->
+            </div>
 
-                  <!-- Settings / Fallback View (Removed) -->
+            <div class="sidebar-divider"></div>
 
-          </div><!-- /hub-content -->
-        </div><!-- /profile-hub -->
-
-        <!-- ══════════════════════════════════════════════════════ -->
-        <!--  MY FEED DIVIDER                                       -->
-        <!-- ══════════════════════════════════════════════════════ -->
-        <div class="feed-divider" role="separator" aria-label="Activity Feed">
-          <div class="feed-divider__line"></div>
-          <span class="feed-divider__label">My Feed</span>
-          <div class="feed-divider__line"></div>
-        </div>
-
-        <!-- ══════════════════════════════════════════════════════ -->
-        <!--  ACTIVITY FEED                                         -->
-        <!-- ══════════════════════════════════════════════════════ -->
-        <div id="main-feed-column" class="main-feed-column">
-
-          <!-- AI Mentor Card -->
-          <article class="card ai-mentor-card" aria-labelledby="ai-mentor-title">
-            <header class="ai-mentor__header">
-              <span class="ai-mentor__icon" aria-hidden="true">🤖</span>
-              <div>
-                <h2 class="ai-mentor__title" id="ai-mentor-title">AI Mentor</h2>
-                <p class="ai-mentor__desc">Stuck on a logic problem or need a code review?</p>
+            <!-- Tier A: Total Contribution -->
+            <div class="sidebar-stat-group">
+              <div style="font-size: 24px; font-weight: bold; margin-bottom: 16px; color: var(--color-text-primary);" class="mono-val">
+                <span id="sidebar-total-solved">---</span> <span style="font-size: 13px; font-weight: normal; color: var(--color-text-muted); font-family: var(--font-sans);">Problems Solved</span>
               </div>
-            </header>
-            <div class="ai-input-group">
-              <input type="text" id="ai-question" class="form-input input-field" placeholder="Ask your project guide…"
-                aria-label="Ask the AI mentor" autocomplete="off" />
-              <button id="ask-ai-btn" class="btn btn-primary" type="button" aria-label="Send question to AI mentor">
-                Ask
+              
+              <div class="dense-stat-item" style="display: flex; align-items: center; justify-content: space-between; font-size: 13px; margin-bottom: 8px;">
+                <span class="stat-label" style="color: var(--color-text-secondary);">LeetCode</span>
+                <span id="sidebar-lc-solved" class="stat-value-mono mono-val" style="color: var(--color-text-primary);">---</span>
+              </div>
+              <div class="dense-stat-item" style="display: flex; align-items: center; justify-content: space-between; font-size: 13px; margin-bottom: 8px;">
+                <span class="stat-label" style="color: var(--color-text-secondary);">CodeChef</span>
+                <span id="sidebar-cc-solved" class="stat-value-mono mono-val" style="color: var(--color-text-primary);">---</span>
+              </div>
+              <div class="dense-stat-item" style="display: flex; align-items: center; justify-content: space-between; font-size: 13px; margin-bottom: 8px;">
+                <span class="stat-label" style="color: var(--color-text-secondary);">CodeForces</span>
+                <span id="sidebar-cf-solved" class="stat-value-mono mono-val" style="color: var(--color-text-primary);">---</span>
+              </div>
+            </div>
+
+            <div class="sidebar-divider"></div>
+
+            <!-- Tier B: Languages -->
+            <div class="sidebar-stat-group" style="padding: 0 12px;">
+              <h4 class="sidebar-group__title">Languages</h4>
+              <div id="dash-languages" class="progress-stack" style="display: flex; flex-direction: column; gap: 16px; margin-top: 16px;">
+                <!-- Java -->
+                <div>
+                  <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
+                    <span style="color: var(--color-text-primary);">Java</span>
+                    <span style="color: var(--color-text-secondary);"><strong style="color: var(--color-text-primary);" class="mono-val">376</strong> problems solved</span>
+                  </div>
+                  <div style="height: 6px; background-color: var(--color-bg-tertiary); border-radius: 4px; overflow: hidden;">
+                    <div style="height: 100%; width: 80%; background-color: var(--color-accent); border-radius: 4px;"></div>
+                  </div>
+                </div>
+                <!-- Python3 -->
+                <div>
+                  <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
+                    <span style="color: var(--color-text-primary);">Python3</span>
+                    <span style="color: var(--color-text-secondary);"><strong style="color: var(--color-text-primary);" class="mono-val">65</strong> problems solved</span>
+                  </div>
+                  <div style="height: 6px; background-color: var(--color-bg-tertiary); border-radius: 4px; overflow: hidden;">
+                    <div style="height: 100%; width: 14%; background-color: var(--color-accent); border-radius: 4px;"></div>
+                  </div>
+                </div>
+                <!-- C# -->
+                <div>
+                  <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
+                    <span style="color: var(--color-text-primary);">C#</span>
+                    <span style="color: var(--color-text-secondary);"><strong style="color: var(--color-text-primary);" class="mono-val">22</strong> problems solved</span>
+                  </div>
+                  <div style="height: 6px; background-color: var(--color-bg-tertiary); border-radius: 4px; overflow: hidden;">
+                    <div style="height: 100%; width: 5%; background-color: var(--color-accent); border-radius: 4px;"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Main Dashboard Fluid Area -->
+        <main class="workspace-main">
+          <div class="dashboard-header-row">
+            <h2 class="workspace-title">Workspace Dashboard</h2>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span id="sync-status-msg" style="font-size: 12px; color: var(--color-text-muted); font-family: var(--font-mono);"></span>
+              <button id="dash-settings-btn" class="nav-icon-btn" title="Settings" style="background: var(--color-bg-secondary); border: 1px solid var(--color-border);">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+              </button>
+              <button id="dash-sync-btn" class="btn btn-secondary sync-btn">
+                Sync Data
               </button>
             </div>
-            <div id="ai-response" class="ai-response" role="status" aria-live="polite"></div>
-          </article>
-
-          <!-- Create Post Card -->
-          <article class="card card--composer" aria-label="Create a new post">
-            <header class="composer__header">
-              <img class="composer__avatar" id="composer-avatar" src="" alt="" width="40" height="40"
-                aria-hidden="true" />
-              <h2 class="composer__title">Share Something</h2>
-            </header>
-            <form id="post-form" class="post-form" novalidate>
-              <div class="form-group">
-                <label class="form-label sr-only" for="post-content">Code snippet or thought</label>
-                <textarea class="form-textarea input-field" id="post-content" name="content"
-                  placeholder="Paste your code, share a tip, or ask a question…" rows="4"
-                  aria-label="Post content"></textarea>
-              </div>
-              <div class="form-group" style="margin-top:var(--space-4);">
-                <label class="form-label sr-only" for="post-video-url">YouTube URL</label>
-                <input type="url" id="post-video-url" placeholder="Paste YouTube link (optional)..."
-                  class="form-input input-field" style="width:100%;border-radius:var(--radius-sm);" />
-              </div>
-              <div class="composer__actions">
-                <label class="btn btn-secondary btn--icon" for="post-video" aria-label="Attach a video">
-                  <span class="upload-icon" aria-hidden="true">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                      stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                  </span>
-                  <input class="form-input-file" type="file" id="post-video" name="video" accept="video/*"
-                    aria-label="Upload a video" />
-                </label>
-                <span class="file-name-display" id="video-file-name" aria-live="polite">No file chosen</span>
-                <button class="btn btn-primary" type="submit" id="post-submit-btn">Post</button>
-              </div>
-            </form>
-          </article>
-
-          <!-- Live Feed Posts Container -->
-          <div id="feed-container" class="feed-container" role="feed">
-            <article class="video-skeleton">
-              <div class="video-placeholder shimmer">
-                <div class="play-overlay"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                    <polygon points="5 3 19 12 5 21 5 3" />
-                  </svg></div>
-              </div>
-              <h3 class="video-title-placeholder shimmer">Upcoming: Binary Search Walkthrough</h3>
-            </article>
-            <article class="video-skeleton">
-              <div class="video-placeholder shimmer">
-                <div class="play-overlay"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                    <polygon points="5 3 19 12 5 21 5 3" />
-                  </svg></div>
-              </div>
-              <h3 class="video-title-placeholder shimmer">Upcoming: Dynamic Programming Walkthrough</h3>
-            </article>
-            <article class="video-skeleton">
-              <div class="video-placeholder shimmer">
-                <div class="play-overlay"><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                    <polygon points="5 3 19 12 5 21 5 3" />
-                  </svg></div>
-              </div>
-              <h3 class="video-title-placeholder shimmer">Upcoming: Graph Traversal Walkthrough</h3>
-            </article>
           </div>
 
-        </div><!-- /main-feed-column -->
+          <!-- Tier 1: Contest Ratings Matrix -->
+          <div class="dashboard-row dashboard-row--tier1" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px;">
+            <!-- LeetCode Rating (Dynamic) -->
+            <div class="dash-card card--contest" style="padding: 24px; background-color: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px;">
+              <h3 style="font-size: 14px; font-weight: 500; color: var(--color-text-muted); margin-bottom: 16px;">LeetCode Rating</h3>
+              <div style="font-size: 36px; font-weight: bold; margin-bottom: 8px; color: var(--color-text-primary);" class="mono-val" id="dash-contest-rating">0</div>
+              <div style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--color-text-secondary);">
+                <div>Global Rank: <strong id="dash-contest-rank" class="mono-val" style="color: var(--color-text-primary);">0</strong></div>
+                <div>Attended: <strong id="dash-contest-attended" class="mono-val" style="color: var(--color-text-primary);">0</strong></div>
+              </div>
+            </div>
 
-      </div><!-- /home-single-col -->
+            <!-- CodeChef Rating (Static) -->
+            <div class="dash-card card--contest" style="padding: 24px; background-color: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px;">
+              <h3 style="font-size: 14px; font-weight: 500; color: var(--color-text-muted); margin-bottom: 16px;">CodeChef Rating</h3>
+              <div id="cc-rating" style="font-size: 36px; font-weight: bold; margin-bottom: 8px; color: var(--color-text-primary);" class="mono-val">1420</div>
+              <div style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--color-text-secondary);">
+                <div>Global Rank: <strong id="cc-rank" class="mono-val" style="color: var(--color-text-primary);">84,213</strong></div>
+                <div>Attended: <strong id="cc-attended" class="mono-val" style="color: var(--color-text-primary);">12</strong></div>
+              </div>
+            </div>
+
+            <!-- CodeForces Rating (Static) -->
+            <div class="dash-card card--contest" style="padding: 24px; background-color: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px;">
+              <h3 style="font-size: 14px; font-weight: 500; color: var(--color-text-muted); margin-bottom: 16px;">CodeForces Rating</h3>
+              <div id="cf-rating" style="font-size: 36px; font-weight: bold; margin-bottom: 8px; color: var(--color-text-primary);" class="mono-val">1195</div>
+              <div style="display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--color-text-secondary);">
+                <div>Global Rank: <strong id="cf-rank" class="mono-val" style="color: var(--color-text-primary);">---</strong></div>
+                <div>Attended: <strong id="cf-attended" class="mono-val" style="color: var(--color-text-primary);">5</strong></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tier 2: Platform Solved Matrix -->
+          <div class="dashboard-row dashboard-row--tier2" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px;">
+             <!-- LeetCode Solved (Dynamic) -->
+            <div class="dash-card card--solved" style="padding: 24px; background-color: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px;">
+              <h3 style="font-size: 14px; font-weight: 500; color: var(--color-text-muted); margin-bottom: 24px;">LeetCode</h3>
+              <div style="display: flex; align-items: center; gap: 24px;">
+                <div class="donut-chart-container" style="position: relative; width: 80px; height: 80px; flex-shrink: 0; border-radius: 50%; background: conic-gradient(var(--color-easy) 0% 40%, var(--color-medium) 40% 85%, var(--color-hard) 85% 100%); display: flex; align-items: center; justify-content: center;">
+                  <div style="width: 60px; height: 60px; background-color: var(--color-surface); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                    <span id="dash-total-solved" class="total-count mono-val" style="font-size: 20px; font-weight: bold; color: var(--color-text-primary);">0</span>
+                  </div>
+                </div>
+                <div class="solved-breakdown-list" style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+                  <div style="display: flex; justify-content: space-between; font-size: 13px;"><span style="color: var(--color-easy);">Easy</span><span class="mono-val" style="color: var(--color-text-primary);" id="dash-easy-count">0</span></div>
+                  <div style="display: flex; justify-content: space-between; font-size: 13px;"><span style="color: var(--color-medium);">Medium</span><span class="mono-val" style="color: var(--color-text-primary);" id="dash-medium-count">0</span></div>
+                  <div style="display: flex; justify-content: space-between; font-size: 13px;"><span style="color: var(--color-hard);">Hard</span><span class="mono-val" style="color: var(--color-text-primary);" id="dash-hard-count">0</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- CodeChef Solved (Static) -->
+            <div class="dash-card card--solved" style="padding: 24px; background-color: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px;">
+              <h3 style="font-size: 14px; font-weight: 500; color: var(--color-text-muted); margin-bottom: 24px;">CodeChef</h3>
+              <div style="display: flex; align-items: center; gap: 24px;">
+                <div class="donut-chart-container" style="position: relative; width: 80px; height: 80px; flex-shrink: 0; border-radius: 50%; background: conic-gradient(#5A66DF 0% 100%); display: flex; align-items: center; justify-content: center;">
+                  <div style="width: 60px; height: 60px; background-color: var(--color-surface); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                    <span id="cc-total" class="total-count mono-val" style="font-size: 20px; font-weight: bold; color: var(--color-text-primary);">200</span>
+                  </div>
+                </div>
+                <div class="solved-breakdown-list" style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+                  <div style="display: flex; justify-content: space-between; font-size: 13px;"><span style="color: var(--color-text-muted);">Fully Solved</span><span id="cc-full" class="mono-val" style="color: var(--color-text-primary);">200</span></div>
+                  <div style="display: flex; justify-content: space-between; font-size: 13px;"><span style="color: var(--color-text-muted);">Partially Solved</span><span id="cc-partial" class="mono-val" style="color: var(--color-text-primary);">14</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- CodeForces Solved (Static) -->
+            <div class="dash-card card--solved" style="padding: 24px; background-color: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px;">
+              <h3 style="font-size: 14px; font-weight: 500; color: var(--color-text-muted); margin-bottom: 24px;">CodeForces</h3>
+              <div style="display: flex; align-items: center; gap: 24px;">
+                 <div class="donut-chart-container" style="position: relative; width: 80px; height: 80px; flex-shrink: 0; border-radius: 50%; background: conic-gradient(#1A8CD8 0% 60%, #E83F3F 60% 100%); display: flex; align-items: center; justify-content: center;">
+                  <div style="width: 60px; height: 60px; background-color: var(--color-surface); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                    <span id="cf-total" class="total-count mono-val" style="font-size: 20px; font-weight: bold; color: var(--color-text-primary);">230</span>
+                  </div>
+                </div>
+                <div class="solved-breakdown-list" style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+                  <div style="display: flex; justify-content: space-between; font-size: 13px;"><span style="color: var(--color-text-muted);">Div 2/3</span><span id="cf-div2" class="mono-val" style="color: var(--color-text-primary);">215</span></div>
+                  <div style="display: flex; justify-content: space-between; font-size: 13px;"><span style="color: var(--color-text-muted);">Div 1</span><span id="cf-div1" class="mono-val" style="color: var(--color-text-primary);">15</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tier 3: Heatmap -->
+          <div class="dashboard-row dashboard-row--tier3" style="display: grid; grid-template-columns: 1fr; gap: 20px; margin-bottom: 20px;">
+            <div id="heatmap-card" class="dash-card card--heatmap" style="padding: 24px; background-color: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px;">
+              <div class="card-header-mini" style="display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 16px;">
+                <span><strong id="dash-submissions-year" class="mono-val">852</strong> submissions in the past year</span>
+                <span style="color: var(--color-text-secondary); display: flex; gap: 16px;">
+                  <span>Total active days: <strong id="dash-active-days" class="mono-val">140</strong></span>
+                  <span>Max streak: <strong id="dash-max-streak" class="mono-val">108</strong></span>
+                </span>
+              </div>
+              
+              <!-- Month-Segmented Heatmap Wrapper -->
+              <div id="heatmap-main-wrapper" style="display: flex; justify-content: space-between; gap: 8px; width: 100%; overflow-x: hidden;">
+                <!-- JS Populated: Each month is a self-contained grid block -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Tier 4: Recent AC Minimalist List -->
+          <div class="dashboard-row dashboard-row--tier4" style="display: grid; grid-template-columns: 1fr; gap: 20px;">
+            <div id="recent-ac-card" class="dash-card card--recent" style="padding: 24px; background-color: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px;">
+              <div class="card-header-tabs" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--color-border); padding-bottom: 12px; margin-bottom: 16px; color: var(--color-text-muted); font-size: 14px;">
+                <span style="color: var(--color-text-primary); font-weight: 500;">Recent AC Fusion</span>
+              </div>
+              
+              <ul id="dash-recent-ac" class="recent-ac-list" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column;">
+                <li style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #3E3E3E;">
+                  <span style="color: var(--color-text-primary); font-weight: bold; font-family: var(--font-sans); font-size: 14px;">Mirror Distance of an Integer</span>
+                  <span class="mono-val" style="color: var(--color-text-muted); font-size: 13px;">9 hours ago</span>
+                </li>
+                <li style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #3E3E3E;">
+                  <span style="color: var(--color-text-primary); font-weight: bold; font-family: var(--font-sans); font-size: 14px;">Minimum Absolute Distance Between Mirror Pairs</span>
+                  <span class="mono-val" style="color: var(--color-text-muted); font-size: 13px;">2 days ago</span>
+                </li>
+                <li style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #3E3E3E;">
+                  <span style="color: var(--color-text-primary); font-weight: bold; font-family: var(--font-sans); font-size: 14px;">Maximum Twin Sum of a Linked List</span>
+                  <span class="mono-val" style="color: var(--color-text-muted); font-size: 13px;">4 days ago</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </main>
+      </div>
     </section>
 
   </main>
@@ -660,10 +640,276 @@
     </p>
   </footer>
 
+  <!-- ===================== AI MENTOR FLOATING WIDGET ===================== -->
+  <div id="ai-mentor-widget" class="ai-mentor-widget">
+    <button id="ai-mentor-toggle" class="ai-mentor-trigger" aria-label="Open AI Mentor">
+      Ask Help
+    </button>
+    
+    <div id="ai-mentor-window" class="ai-mentor-window" hidden>
+      <header class="ai-window-header">
+        <div class="ai-window-title">
+          <h3>AI Mentor</h3>
+        </div>
+        <button id="ai-window-close" class="ai-close-btn">&times;</button>
+      </header>
+      
+      <div id="ai-chat-body" class="ai-chat-body">
+        <div class="ai-message ai-message--system">
+          Hello! How can I help you with your B.Tech CSE projects today?
+        </div>
+        <div id="ai-response" class="ai-response"></div>
+      </div>
+      
+      <footer class="ai-window-footer">
+        <div class="ai-input-group">
+          <input type="text" id="ai-question" class="form-input" placeholder="Ask a question..." autocomplete="off">
+          <button id="ask-ai-btn" class="btn btn-primary btn--icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          </button>
+        </div>
+      </footer>
+    </div>
+  </div>
+
   <script>
     document.getElementById('footer-year').textContent = new Date().getFullYear();
   </script>
 
+
+  <div id="upload-modal" class="modal-overlay" hidden>
+    <div class="modal-content modal-content--professional">
+      <header class="modal-header">
+        <h2>Create New Post</h2>
+        <button id="upload-modal-close" class="modal-close">&times;</button>
+      </header>
+      
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="upload-title">Title</label>
+          <input type="text" id="upload-title" class="form-input" placeholder="Title of your post...">
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label" for="upload-topic">Topic Tags</label>
+          <input type="text" id="upload-topic" class="form-input" placeholder="e.g. Java, DSA, System Design">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="upload-code">Code Snippet (Optional)</label>
+          <textarea id="upload-code" class="form-textarea code-editor-flat" rows="6" placeholder="Paste your code here..."></textarea>
+        </div>
+
+        <div class="upload-drop-area" id="upload-drop-zone">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+          <p>Drag and drop video or files or click to browse</p>
+          <input type="file" id="upload-file-input" hidden>
+        </div>
+      </div>
+      
+      <footer class="modal-footer">
+        <button id="upload-cancel-btn" class="btn btn-ghost">Cancel</button>
+        <button id="upload-submit-btn" class="btn btn-primary">Upload</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- ===================== SETTINGS MODAL (Glassmorphism) ===================== -->
+  <div id="settings-modal" class="settings-modal">
+    <div class="settings-modal-overlay"></div>
+    <div class="settings-modal-container">
+      <aside class="settings-sidebar">
+        <h2 class="settings-title">Settings</h2>
+        <nav class="settings-tabs">
+          <button class="settings-tab active" data-tab="accounts">Accounts</button>
+          <button class="settings-tab" data-tab="profile">Profile</button>
+          <button class="settings-tab" data-tab="appearance">Appearance</button>
+          <button class="settings-tab" data-tab="data">Data Control</button>
+        </nav>
+        <div class="settings-sidebar-footer">
+          <button id="settings-save-btn" class="btn btn-primary btn-block">
+            <span class="mono-text">Ctrl+S</span> Save Changes
+          </button>
+        </div>
+      </aside>
+
+      <main class="settings-content">
+        <!-- Close Button -->
+        <button class="settings-close-btn" aria-label="Close Settings">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+
+        <!-- Tab 1: Accounts -->
+        <div class="tab-pane active" id="tab-accounts">
+          <h3>Platform Connections</h3>
+          <p class="tab-description">Bind your competitive programming handles to sync repository data.</p>
+          
+          <div class="setting-group">
+            <label>LeetCode Username</label>
+            <div class="input-with-icon">
+              <span class="platform-icon lc"></span>
+              <input type="text" id="set-lc-handle" class="mono-val" placeholder="Username" />
+              <button class="btn-verify" data-platform="leetcode">Verify</button>
+            </div>
+            <div id="verify-status-lc" class="verify-status"></div>
+          </div>
+
+          <div class="setting-group">
+            <label>CodeChef Handle</label>
+            <div class="input-with-icon">
+              <span class="platform-icon cc"></span>
+              <input type="text" id="set-cc-handle" class="mono-val" placeholder="Handle" />
+              <button class="btn-verify" data-platform="codechef">Verify</button>
+            </div>
+            <div id="verify-status-cc" class="verify-status"></div>
+          </div>
+
+          <div class="setting-group">
+            <label>CodeForces Handle</label>
+            <div class="input-with-icon">
+              <span class="platform-icon cf"></span>
+              <input type="text" id="set-cf-handle" class="mono-val" placeholder="Handle" />
+              <button class="btn-verify" data-platform="codeforces">Verify</button>
+            </div>
+            <div id="verify-status-cf" class="verify-status"></div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Profile -->
+        <div class="tab-pane" id="tab-profile">
+          <div style="display: flex; gap: 32px;">
+            <div style="flex: 1;">
+              <h3>Social Identity</h3>
+              <div class="setting-group">
+                <label>Display Name</label>
+                <input type="text" id="set-display-name" placeholder="Full Name" />
+              </div>
+              <div class="setting-group">
+                <label>Avatar URL</label>
+                <input type="text" id="set-avatar-url" placeholder="https://..." />
+              </div>
+              <div class="setting-group">
+                <label>Professional Bio</label>
+                <textarea id="set-bio" rows="3" placeholder="Tell your story..."></textarea>
+              </div>
+            </div>
+            
+            <!-- Live Preview -->
+            <div class="settings-preview-area">
+              <label>Live Preview</label>
+              <div id="settings-profile-preview" class="preview-card">
+                <!-- Cloned from sidebar visually -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Appearance -->
+        <div class="tab-pane" id="tab-appearance">
+          <h3>Workspace Customization</h3>
+          <div class="setting-grid">
+            <div class="setting-group">
+              <label>Accent Color</label>
+              <select id="set-accent-color">
+                <option value="lc-green">LeetCode Green</option>
+                <option value="cf-blue">CodeForces Blue</option>
+                <option value="cc-brown">CodeChef Brown</option>
+              </select>
+            </div>
+            <div class="setting-group">
+              <label>Typography</label>
+              <div class="checkbox-wrapper">
+                <input type="checkbox" id="set-high-contrast" />
+                <span>High Contrast Mono</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="setting-group">
+            <label>Dashboard Tiers</label>
+            <div class="tier-toggle-list">
+              <label><input type="checkbox" id="tier-show-rating" checked> Rating Matrix</label>
+              <label><input type="checkbox" id="tier-show-solved" checked> Solved Charts</label>
+              <label><input type="checkbox" id="tier-show-heatmap" checked> Activity Heatmap</label>
+              <label><input type="checkbox" id="tier-show-recent" checked> Recent AC Fusion</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 4: Data Control -->
+        <div class="tab-pane" id="tab-data">
+          <h3>State & Sync</h3>
+          <div class="setting-group">
+            <label>Sync Cooldown</label>
+            <div class="checkbox-wrapper">
+              <input type="checkbox" id="set-cooldown-enabled" checked />
+              <span>Enable 60s throttle protection</span>
+            </div>
+          </div>
+          
+          <div class="data-actions" style="margin-top: 32px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 24px;">
+            <div style="display: flex; gap: 12px;">
+              <button id="btn-export-json" class="btn btn-ghost">Export Config (.json)</button>
+              <label for="import-json" class="btn btn-ghost" style="cursor: pointer;">Import Config</label>
+              <input type="file" id="import-json" hidden accept=".json" />
+            </div>
+            <button id="btn-clear-cache" class="btn btn-danger" style="margin-top: 12px; width: 100%;">Clear All Persistent Data</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ===================== GLOBAL NAV DRAWER ===================== -->
+  <div id="drawer-backdrop" class="drawer-backdrop"></div>
+  <aside id="global-drawer" class="nav-drawer">
+    <div class="drawer-header">
+      <span class="logo-text">CodeSphere</span>
+      <button id="drawer-close" class="nav-icon-btn">
+         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+    <nav class="drawer-nav">
+      <div class="drawer-group">
+        <a href="#" class="drawer-link active" data-route="home">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 12px;"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+          <span>Home</span>
+        </a>
+        <a href="#" class="drawer-link">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 12px;"><path d="M12 2v20"></path><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+          <span>Trending</span>
+        </a>
+      </div>
+      <hr class="drawer-divider">
+      <div class="drawer-group">
+        <div class="drawer-group__title">Categories</div>
+        <a href="#" class="drawer-link">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 12px;"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+          <span>Java</span>
+        </a>
+        <a href="#" class="drawer-link">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 12px;"><circle cx="12" cy="12" r="10"></circle><polyline points="12 16 16 12 12 8"></polyline><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+          <span>DSA</span>
+        </a>
+        <a href="#" class="drawer-link">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 12px;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+          <span>WebDev</span>
+        </a>
+        <a href="#" class="drawer-link">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 12px;"><path d="M12 2a2 2 0 0 1 2 2c0 1.1-.9 2-2 2a2 2 0 0 1-2-2c0-1.1.9-2 2-2z"></path><path d="M12 6v16"></path><path d="M8 10h8"></path></svg>
+          <span>AI</span>
+        </a>
+      </div>
+    </nav>
+  </aside>
+
+  </main>
+
+  <div id="toast-container"></div>
 </body>
 
 </html>

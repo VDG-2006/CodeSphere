@@ -1,5 +1,5 @@
 /* Google Font — must be first, before all other rules */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Roboto:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
 /* ============================================================
    base.css — Foundation Layer
@@ -80,20 +80,20 @@ p {
 
 :root {
 
-  /* — Color Palette (Light Professional Standard) — */
-  --color-bg:            #F7F8FA;
+  /* — Color Palette (Enterprise Standard - Light) — */
+  --color-bg:            #F9FAFB;
   --color-bg-secondary:  #FFFFFF;
-  --color-bg-tertiary:   #F9F9F9;
+  --color-bg-tertiary:   #F3F4F6;
 
   --color-surface:       #FFFFFF;
-  --color-surface-raised:#FAFAFA;
+  --color-surface-raised:#FFFFFF;
 
-  --color-border:        #E5E5E5;
-  --color-border-strong: #D4D4D4;
+  --color-border:        #E5E7EB;
+  --color-border-strong: #D1D5DB;
 
-  --color-text-primary:  #1A1A1A;
-  --color-text-secondary:#64748b;
-  --color-text-muted:    #94a3b8;
+  --color-text-primary:  #111827;
+  --color-text-secondary:#4B5563;
+  --color-text-muted:    #9CA3AF;
   --color-text-inverse:  #FFFFFF;
 
   --color-accent:        #007AFF;    /* Professional Blue */
@@ -104,7 +104,7 @@ p {
   --color-medium:        #FFB800;   /* Yellow */
   --color-hard:          #FF2D55;   /* Red */
 
-  --color-streak:        #F97316;   /* orange */
+  --color-streak:        #2DB55D;   /* LeetCode Green */
 
   /* — Shadows — */
   --shadow-xs:  0 4px 12px rgba(0, 0, 0, 0.05);
@@ -113,8 +113,11 @@ p {
   --shadow-lg:  0 8px 32px rgba(0, 0, 0, 0.10);
 
   /* — Typography — */
-  --font-sans: 'Inter', 'Helvetica Neue', Arial, system-ui, sans-serif;
+  --font-sans: 'Inter', 'Roboto', 'Helvetica Neue', Arial, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+
+  /* Typographic Utility */
+  --font-mono-strict: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace !important;
 
   --text-xs:   0.75rem;    /*  12px */
   --text-sm:   0.875rem;   /*  14px */
@@ -173,10 +176,10 @@ p {
   --transition-slow:   380ms ease;
 
   /* — Layout — */
-  --max-width:       1200px;
-  --content-width:    760px;
+  --max-width:       100%;
+  --content-width:    100%;
   --nav-height:        64px;
-  --section-padding: var(--space-16);
+  --section-padding: 40px;
 }
 
 /* ── 4. Focus Management (Accessibility) ────────────────────── */

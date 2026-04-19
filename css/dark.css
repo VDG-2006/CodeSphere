@@ -9,90 +9,92 @@
 
 /* Default Theme (Variable Base) */
 :root {
-  /* ── Light Mode (Default) ── */
-  --color-bg: #f9f9f9;
-  --color-surface: #ffffff;
-  --color-bg-secondary: #f0f0f0;
-  --color-bg-tertiary: #e5e5e5;
-  --color-surface-raised: #ffffff;
+  /* ── Light Mode (Professional Standard) ── */
+  --color-bg: #F9F9F9;
+  --color-surface: #FFFFFF;
+  --color-bg-secondary: #F0F0F0;
+  --color-bg-tertiary: #E5E5E5;
+  --color-surface-raised: #FFFFFF;
 
-  --color-text-primary: #1d1d1f;
+  --color-text-primary: #0F0F0F;
   --color-text-secondary: #424245;
   --color-text-muted: #86868b;
-  --color-text-inverse: #ffffff;
+  --color-text-inverse: #FFFFFF;
 
-  --color-border: rgba(0, 0, 0, 0.08);
-  --color-border-strong: rgba(0, 0, 0, 0.12);
+  --color-border: #E5E5E5;
+  --color-border-strong: #D4D4D4;
 
   /* Navbar Options */
-  --nav-bg: rgba(255, 255, 255, 0.85);
-  --nav-text: #1d1d1f;
-  --nav-border: rgba(0, 0, 0, 0.05);
+  --nav-bg: #FFFFFF;
+  --nav-text: #0F0F0F;
+  --nav-border: #E5E5E5;
   --nav-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
   
-  --search-bg: #f5f5f7;
-  --search-bg-hover: #ebebef;
-  --search-bg-focus: #ffffff;
+  --search-bg: #F0F0F0;
+  --search-bg-hover: #EBEBEF;
+  --search-bg-focus: #FFFFFF;
   --search-placeholder: #86868b;
 
   /* Accent */
-  --color-accent: #6366f1;
-  --color-accent-hover: #4f46e5;
-  --color-accent-glow: rgba(99, 102, 241, 0.15);
+  --color-accent: #007AFF;
+  --color-accent-hover: #005BB5;
+  --color-accent-glow: rgba(0, 122, 255, 0.15);
 
   /* Difficulty tints */
-  --color-easy: #059669;
-  --color-medium: #d97706;
-  --color-hard: #dc2626;
-  --color-streak: #ea580c;
+  --color-easy: #00B8A3;
+  --color-medium: #FFB800;
+  --color-hard: #FF2D55;
+  --color-streak: #F97316;
 
   /* Dropdown */
-  --dropdown-bg: #ffffff;
-  --dropdown-text: #1d1d1f;
-  --dropdown-hover: #f5f5f7;
+  --dropdown-bg: #FFFFFF;
+  --dropdown-text: #0F0F0F;
+  --dropdown-hover: #F5F5F7;
   --dropdown-shadow: rgba(0, 0, 0, 0.08);
 }
 
-/* Dark Mode Overrides */
+/* Dark Mode Overrides (Enterprise Standard) */
 [data-theme="dark"],
-body.dark-theme { /* support both methods if used */
-  --color-bg: #0f0f0f;
-  --color-surface: #1a1a1a;
-  --color-bg-secondary: #141414;
-  --color-bg-tertiary: #1e1e1e;
-  --color-surface-raised: #202020;
+body.dark-theme { 
+  --color-bg: #1A1A1A;
+  --color-surface: #282828;
+  --color-bg-secondary: #1A1A1A;
+  --color-bg-tertiary: #333333;
+  --color-surface-raised: #282828;
 
-  --color-text-primary: #ffffff;
-  --color-text-secondary: #aaaaaa;
-  --color-text-muted: #666666;
-  --color-text-inverse: #0f0f0f;
+  --color-text-primary: #FFFFFF;
+  --color-text-secondary: #D1D5DB;
+  --color-text-muted: #9CA3AF;
+  --color-text-inverse: #1A1A1A;
 
-  --color-border: rgba(255, 255, 255, 0.1);
-  --color-border-strong: rgba(255, 255, 255, 0.16);
+  --color-border: #3E3E3E;
+  --color-border-strong: #4A4A4A;
 
-  --nav-bg: rgba(15, 15, 15, 0.8);
-  --nav-text: #ffffff;
-  --nav-border: rgba(255, 255, 255, 0.1);
-  --nav-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
+  --nav-bg: #1A1A1A;
+  --nav-text: #FFFFFF;
+  --nav-border: #262626;
+  --nav-shadow: 0 1px 0 rgba(255, 255, 255, 0.05);
   
-  --search-bg: rgba(255, 255, 255, 0.07);
-  --search-bg-hover: rgba(255, 255, 255, 0.1);
-  --search-bg-focus: rgba(255, 255, 255, 0.12);
-  --search-placeholder: rgba(255, 255, 255, 0.4);
+  --search-bg: #1A1A1A;
+  --search-bg-hover: #1C1C1C;
+  --search-bg-focus: #0A0A0A;
+  --search-placeholder: #6B7280;
 
-  --color-accent-hover: #818cf8;
-  --color-accent-glow: rgba(99, 102, 241, 0.35);
+  --color-accent: #007AFF;
+  --color-accent-hover: #3395FF;
+  --color-accent-glow: rgba(0, 122, 255, 0.3);
 
-  --color-easy: #4ade80;
-  --color-medium: #fbbf24;
-  --color-hard: #f87171;
-  --color-streak: #fb923c;
+  --color-easy: #00B8A3;
+  --color-medium: #FFB800;
+  --color-hard: #FF2D55;
+  --color-streak: #2DB55D;
 
-  --dropdown-bg: #1a1a1a;
-  --dropdown-text: #ffffff;
-  --dropdown-hover: #333333;
-  --dropdown-shadow: rgba(0, 0, 0, 0.5);
+  --dropdown-bg: #282828;
+  --dropdown-text: #FFFFFF;
+  --dropdown-hover: #3E3E3E;
+  --dropdown-shadow: rgba(0, 0, 0, 0.8);
 }
+
 
 /* Removing legacy separate light-mode block as it's now handled in :root base and dark overrides above */
 
@@ -1168,9 +1170,7 @@ body.is-logged-in .auth-nav {
   min-height: calc(100vh - var(--nav-height));
 }
 
-.section-center {
-  min-height: calc(100vh - var(--nav-height));
-}
+/* .section-center centering handled in layout.css */
 
 .card__header {
   margin-bottom: var(--space-6);

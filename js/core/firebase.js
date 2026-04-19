@@ -8,7 +8,7 @@
 
 import { initializeApp }  from 'https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js';
 import { getAuth }        from 'https://www.gstatic.com/firebasejs/12.12.0/firebase-auth.js';
-import { getFirestore }   from 'https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js';
+import { initializeFirestore }   from 'https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js';
 import { getAnalytics }   from 'https://www.gstatic.com/firebasejs/12.12.0/firebase-analytics.js';
 
 import { firebaseConfig } from './config.js';
@@ -19,7 +19,7 @@ import { firebaseConfig } from './config.js';
 
 const app       = initializeApp(firebaseConfig);
 const auth      = getAuth(app);
-const db        = getFirestore(app);
+const db        = initializeFirestore(app, { experimentalForceLongPolling: true });
 const analytics = getAnalytics(app);
 
 export { app, auth, db, analytics };

@@ -28,12 +28,19 @@ import {
 // DOM References
 // ─────────────────────────────────────────────────────────────────
 
-const feedContainer  = document.getElementById('feed-container');
+const feedContainer  = document.getElementById('feed-container') || document.getElementById('home-feed-grid');
 const postForm       = document.getElementById('post-form');
 const postContent    = document.getElementById('post-content');
 const postSubmitBtn  = document.getElementById('post-submit-btn');
 const postVideoInput = document.getElementById('post-video');
 const videoFileName  = document.getElementById('video-file-name');
+
+// Safe Initialization
+const initFeed = () => {
+  if (postForm) {
+    postForm.addEventListener('submit', (en) => { /* logic */ });
+  }
+};
 
 // ─────────────────────────────────────────────────────────────────
 // 1. Utility — timeAgo
@@ -280,8 +287,10 @@ const listenToFeed = () => {
       initVideoPlayers();
     },
     (error) => {
-      console.error('[CodeSphere/feed] onSnapshot error:', error);
-      feedContainer.innerHTML = errorFeedTemplate();
+      console.warn('[CodeSphere/feed] onSnapshot error:', error);
+      if (feedContainer) {
+        feedContainer.innerHTML = errorFeedTemplate(error);
+      }
     }
   );
 
@@ -299,12 +308,18 @@ const emptyFeedTemplate = () => /* html */ `
   </div>
 `;
 
-const errorFeedTemplate = () => /* html */ `
-  <div class="feed-empty feed-empty--error">
-    <span class="feed-empty__icon" aria-hidden="true">⚠️</span>
-    <p class="feed-empty__text">Could not load the feed. Please refresh the page.</p>
-  </div>
-`;
+const errorFeedTemplate = (error) => {
+  const isBlocked = error?.message?.includes('failed') || error?.name?.includes('FirebaseError');
+  return /* html */ `
+    <div class="feed-empty feed-empty--error" style="grid-column: 1 / -1; padding: 40px; text-align: center; background: var(--color-bg-secondary); border-radius: 12px; border: 1px solid var(--color-border); margin: 20px;">
+      <span class="feed-empty__icon" style="font-size: 32px; display: block; margin-bottom: 16px;" aria-hidden="true">${isBlocked ? '🚫' : '⚠️'}</span>
+      <h3 style="color: var(--color-text-primary); margin-bottom: 8px;">${isBlocked ? 'Connection Blocked' : 'Could Not Load Feed'}</h3>
+      <p class="feed-empty__text" style="color: var(--color-text-muted); font-size: 14px; max-width: 300px; margin: 0 auto;">
+        ${isBlocked ? 'Your browser or ad-blocker is preventing a connection to the social feed. Please disable blockers for this site.' : 'An unexpected error occurred while loading posts. Please refresh or try again later.'}
+      </p>
+    </div>
+  `;
+};
 
 // ─────────────────────────────────────────────────────────────────
 // 7. Like System — Event Delegation
