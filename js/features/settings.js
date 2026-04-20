@@ -168,16 +168,13 @@ export const settings = {
   async save() {
     this.updateFormState();
     
-    // Update individual categories
-    ConfigManager.set('accounts', this.formState.accounts);
-    ConfigManager.set('profile', this.formState.profile);
-    ConfigManager.set('appearance', this.formState.appearance);
-    ConfigManager.set('sync', this.formState.sync);
-    
-    await ConfigManager.save();
+    // 1. Direct Save via Master Controller
+    const { saveSettings } = await import('../core/config.js');
+    await saveSettings();
+
     this.updatePreview();
     
-    // Apply Theme & Accent
+    // 2. Apply Visual Theme & Accent
     this.applyTheme(this.formState.appearance.theme);
     this.applyAccent(this.formState.appearance.accent);
   },

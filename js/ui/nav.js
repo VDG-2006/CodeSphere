@@ -87,7 +87,7 @@ fileInput?.addEventListener('change', (e) => {
   }
 });
 
-// ── Global Navigation Drawer ─────────────────────────────────────
+// ── Global Navigation Drawer (Exclusive Home Mode) ───────────
 
 const drawerBtn      = document.getElementById('nav-drawer-btn');
 const drawerClose    = document.getElementById('drawer-close');
@@ -95,11 +95,20 @@ const drawerBackdrop = document.getElementById('drawer-backdrop');
 const globalDrawer   = document.getElementById('global-drawer');
 
 const toggleDrawer = (force) => {
-  if (typeof force === 'boolean') {
-    document.body.classList.toggle('drawer-open', force);
+  const isOpen = (typeof force === 'boolean') ? force : !globalDrawer?.classList.contains('sidebar-active');
+
+  if (isOpen) {
+    globalDrawer?.classList.add('sidebar-active');
+    drawerBackdrop?.classList.add('active');
+    document.body.classList.add('drawer-open'); // Legacy support
   } else {
-    document.body.classList.toggle('drawer-open');
+    globalDrawer?.classList.remove('sidebar-active');
+    drawerBackdrop?.classList.remove('active');
+    document.body.classList.remove('drawer-open');
   }
+
+  // Accessibility: Lockdown background scrolling when drawer is active
+  document.body.style.overflow = isOpen ? 'hidden' : '';
 };
 
 drawerBtn?.addEventListener('click', (e) => {
@@ -124,7 +133,6 @@ globalDrawer?.addEventListener('click', (e) => {
       window.CodeSphere.router.MapsTo(link.dataset.route);
     }
   } else {
-    // For non-route links (maybe anchor or external), still close the drawer
     toggleDrawer(false);
   }
 });

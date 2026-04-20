@@ -8,7 +8,8 @@ import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.12.0/firebase
 import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.12.0/firebase-auth.js';
 
 const ALFA_API_BASE = 'https://alfa-leetcode-api.onrender.com';
-const CC_API_BASE = 'https://codechef-api.vercel.app';
+const CC_PRIMARY = 'https://codechefapi.vercel.app';
+const CC_BACKUP = 'https://chef-api.vercel.app';
 const CF_API_BASE = 'https://codeforces.com/api';
 const SYNC_COOLDOWN = 60 * 1000; // 60 seconds
 
@@ -66,6 +67,7 @@ export const dashboard = {
     try {
       const response = await fetch(url, { signal: controller.signal });
       clearTimeout(id);
+      if (response.status === 404) return { success: false, status: 404 }; // Immediate halt for missing user
       if (response.status === 402) {
         const err = new Error('API Quota Exceeded');
         err.name = 'QuotaError';
@@ -82,17 +84,71 @@ export const dashboard = {
     }
   },
 
-  getMockFallback(platform, handle) {
-    const mocks = {
-      lcSolved: { totalSolved: 376, easySolved: 120, mediumSolved: 210, hardSolved: 46, ranking: 270937 },
-      lcContest: { contestRating: 1842, contestGlobalRanking: 45213, contestAttend: 24 },
-      lcCalendar: { submissionCalendar: JSON.stringify({ [Math.floor(Date.now()/1000)]: 5, [Math.floor(Date.now()/1000)-86400]: 2 }) },
-      lcRecent: [ { title: "Two Sum", timestamp: Math.floor(Date.now()/1000)-3600 }, { title: "Merge-K-Sorted-Lists", timestamp: Math.floor(Date.now()/1000)-7200 } ],
-      ccProfile: { currentRating: 1420, globalRank: 84213, stars: '3★', totalSolved: 200 },
-      cfInfo: { result: [{ rating: 1195, rank: 'pupil', maxRating: 1250 }] },
-      cfStatus: { result: [{ verdict: 'OK', creationTimeSeconds: Math.floor(Date.now()/1000)-50000 }] }
+  updateUIWithNullState(platformPrefix) {
+    const ids = {
+      lc: ['dash-total-solved', 'dash-easy-count', 'dash-medium-count', 'dash-hard-count', 'dash-contest-rating', 'dash-contest-rank', 'dash-contest-attended', 'dash-rank'],
+      cc: ['cc-rating', 'cc-stars', 'cc-rank', 'cc-max-rating', 'cc-total', 'cc-full', 'cc-partial'],
+      cf: ['cf-rating', 'cf-rank', 'cf-attended', 'cf-total']
     };
-    return mocks[platform] || null;
+
+    const targets = platformPrefix ? (ids[platformPrefix] || []) : Object.values(ids).flat();
+    targets.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = '<span class="mono-val">--</span>';
+    });
+    
+    // Sidebar Aggregator Null States
+    if (!platformPrefix) {
+      ['sidebar-total-solved', 'sidebar-lc-solved', 'sidebar-cc-solved', 'sidebar-cf-solved'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = '<span class="mono-val">--</span>';
+      });
+    }
+  },
+
+  async fetchCodeChefData(handle) {
+    // 1. Identity Check / Null-State Guard
+    if (!handle || handle.trim() === "") {
+      this.updateUIWithNullState('cc');
+      return { success: false, status: 'NO_HANDLE' };
+    }
+
+    const targetUrl = `${CC_PRIMARY}/${handle}`;
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+
+    try {
+      const response = await fetch(proxyUrl);
+      if (!response.ok) throw new Error('Proxy Network Error');
+      
+      const json = await response.json();
+      if (!json.contents) throw new Error('No contents from proxy');
+      
+      const content = JSON.parse(json.contents);
+      
+      if (!content || content.status === 'error' || content.success === false) {
+        throw new Error('User Not Found');
+      }
+
+      return { success: true, data: content };
+    } catch (e) {
+      console.warn('CodeChef Sync Failed:', e);
+      this.updateUIWithNullState('cc');
+      return { success: false, status: 'SYNC_ERROR' };
+    }
+  },
+
+  getMockFallback(platform, handle) {
+    // Returning null/empty states ensures the UI renders '--' for unauthenticated/unconnected users
+    const fallbacks = {
+      lcSolved: { totalSolved: 0, easySolved: 0, mediumSolved: 0, hardSolved: 0, ranking: 0 },
+      lcContest: { rating: 0, globalRank: 0, attended: 0 },
+      lcCalendar: { submissionCalendar: {} },
+      lcRecent: [],
+      ccProfile: { currentRating: 0, globalRank: 0, stars: '--', totalSolved: 0 },
+      cfInfo: { result: [] },
+      cfStatus: { result: [] }
+    };
+    return fallbacks[platform] || null;
   },
 
   async refreshData() {
@@ -110,14 +166,34 @@ export const dashboard = {
     if (syncBtn) syncBtn.disabled = true;
     cards.forEach(c => c.classList.add('is-syncing'));
 
+    // 1. Identity Check
+    if (!handle || handle.trim() === "") {
+      this.updateUIWithNullState();
+      if (syncBtn) syncBtn.disabled = false;
+      cards.forEach(c => c.classList.remove('is-syncing'));
+      return;
+    }
+
     const results = await Promise.allSettled([
-      // LeetCode Data
-      this.fetchWithTimeout(`${ALFA_API_BASE}/${handle}/solved`),
-      this.fetchWithTimeout(`${ALFA_API_BASE}/${handle}/contest`),
+      // LeetCode Data (Using Proxy for Stability)
+      (async () => {
+        const url = `${ALFA_API_BASE}/${handle}/solved`;
+        const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+        const res = await fetch(proxy);
+        const json = await res.json();
+        return JSON.parse(json.contents);
+      })(),
+      (async () => {
+        const url = `${ALFA_API_BASE}/${handle}/contest`;
+        const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+        const res = await fetch(proxy);
+        const json = await res.json();
+        return JSON.parse(json.contents);
+      })(),
       this.fetchWithTimeout(`${ALFA_API_BASE}/${handle}/calendar`),
       this.fetchWithTimeout(`${ALFA_API_BASE}/${handle}/acSubmission?limit=10`),
-      // CodeChef Data
-      this.fetchWithTimeout(`${CC_API_BASE}/${handle}`),
+      // CodeChef Data (Resilient Engine)
+      this.fetchCodeChefData(handle),
       // CodeForces Data
       this.fetchWithTimeout(`${CF_API_BASE}/user.info?handles=${handle}`),
       this.fetchWithTimeout(`${CF_API_BASE}/user.status?handle=${handle}&from=1&count=50`)
@@ -209,8 +285,8 @@ export const dashboard = {
   },
 
   calculateSolvedCounts(data) {
-    const lc = data.lcSolved?.solvedProblem || 0;
-    const cc = data.ccProfile?.totalSolved || 0;
+    const lc = parseInt(data.lcSolved?.solvedProblem) || 0;
+    const cc = parseInt(data.ccProfile?.data?.fullySolved?.count) || parseInt(data.ccProfile?.totalSolved) || 0;
     
     // CF Deep Sync logic
     let cf = 0;
@@ -222,7 +298,8 @@ export const dashboard = {
       cf = unique.size;
     }
 
-    return { lc, cc, cf, total: lc + cc + cf };
+    const total = lc + cc + cf;
+    return { lc, cc, cf, total: isNaN(total) ? 0 : total };
   },
 
   updateSidebarAggregator(counts, data) {
@@ -233,7 +310,13 @@ export const dashboard = {
 
     if (totalEl) totalEl.textContent = counts.total || '--';
     if (lcEl) lcEl.textContent = counts.lc || '--';
-    if (ccEl) ccEl.textContent = counts.cc || '--';
+    
+    // Prioritize fullySolved.count for CodeChef in aggregator
+    if (ccEl) {
+      const ccFull = parseInt(data.ccProfile?.data?.fullySolved?.count);
+      ccEl.textContent = !isNaN(ccFull) ? ccFull : (counts.cc || '--');
+    }
+    
     if (cfEl) cfEl.textContent = counts.cf || '--';
     
     // Identity Rank Fallback
@@ -272,20 +355,49 @@ export const dashboard = {
     }
   },
 
-  renderCodeChefCard(profile) {
-    const rat = document.getElementById('cc-rating');
-    const rnk = document.getElementById('cc-rank');
-    const att = document.getElementById('cc-attended');
-    const tot = document.getElementById('cc-total');
+  renderCodeChefCard(result) {
+    const nodes = {
+      rating: document.getElementById('cc-rating'),
+      stars: document.getElementById('cc-stars'),
+      rank: document.getElementById('cc-rank'),
+      maxRating: document.getElementById('cc-max-rating'),
+      total: document.getElementById('cc-total'),
+      cardHeader: document.querySelector('.card--contest h3')
+    };
 
-    if (rat) rat.textContent = profile?.currentRating || '--';
-    if (rnk) rnk.textContent = profile?.globalRank || '--';
-    if (att) att.textContent = profile?.stars ?? '--';
-    if (tot) tot.textContent = profile?.totalSolved ?? '--';
+    // 1. Circuit Breaker / Failure Handler
+    if (!result || !result.success) {
+      if (nodes.rating) {
+        nodes.rating.textContent = '--';
+        nodes.rating.style.fontFamily = 'JetBrains Mono, monospace';
+      }
+      if (nodes.cardHeader) {
+        nodes.cardHeader.innerHTML = 'CodeChef Rating <span style="color:var(--color-text-muted);font-size:10px;font-weight:400;margin-left:8px;" title="Source Connectivity Issue">(Sync Error)</span>';
+      }
+      return;
+    }
+
+    const { data } = result;
+
+    // 2. Data Mapping & Sanitization
+    if (nodes.rating) nodes.rating.textContent = parseInt(data.currentRating) || '--';
+    if (nodes.stars) nodes.stars.textContent = `${data.stars || '0'}★`;
+    if (nodes.rank) nodes.rank.textContent = parseInt(data.globalRank) || '--';
+    if (nodes.maxRating) nodes.maxRating.textContent = parseInt(data.highestRating) || '--';
     
-    if (profile) {
+    const solvedCount = parseInt(data.fullySolved?.count) || 0;
+    if (nodes.total) nodes.total.textContent = solvedCount;
+
+    // 3. UI Update: Dynamic Donut Chart (Tier 2)
+    const partialCount = parseInt(data.partiallySolved?.count) || 0;
+    const totalPossible = solvedCount + partialCount;
+
+    if (totalPossible > 0) {
+      const ratio = (solvedCount / totalPossible) * 100;
       const donut = document.querySelectorAll('.dash-card.card--solved .donut-chart-container')[1];
-      if (donut) donut.style.background = `conic-gradient(var(--color-accent) 0% 100%)`;
+      if (donut) {
+        donut.style.background = `conic-gradient(var(--color-accent) 0% ${ratio}%, var(--color-bg-tertiary) ${ratio}% 100%)`;
+      }
     }
   },
 

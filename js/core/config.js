@@ -113,4 +113,107 @@ export const ConfigManager = {
   }
 };
 
+/**
+ * Robust Save Fix: Direct DOM capture and master persistence
+ */
+export async function saveSettings() {
+  const accounts = {
+    leetcode: document.getElementById('set-lc-handle')?.value || '',
+    codechef: document.getElementById('set-cc-handle')?.value || '',
+    codeforces: document.getElementById('set-cf-handle')?.value || ''
+  };
+
+  const profile = {
+    name: document.getElementById('set-display-name')?.value || '',
+    avatar: document.getElementById('set-avatar-url')?.value || '',
+    bio: document.getElementById('set-bio')?.value || ''
+  };
+
+  const appearance = {
+    accent: document.getElementById('set-accent-color')?.value || 'lc-green',
+    contrast: document.getElementById('set-high-contrast')?.checked || false,
+    theme: document.getElementById('set-ui-theme')?.value || 'dark',
+    tiers: {
+      rating: document.getElementById('tier-show-rating')?.checked ?? true,
+      solved: document.getElementById('tier-show-solved')?.checked ?? true,
+      heatmap: document.getElementById('tier-show-heatmap')?.checked ?? true,
+      recent: document.getElementById('tier-show-recent')?.checked ?? true
+    }
+  };
+
+  const masterConfig = {
+    accounts,
+    profile,
+    appearance,
+    sync: { cooldown: document.getElementById('set-cooldown-enabled')?.checked ?? true }
+  };
+
+  // 1. Master Persistence
+  localStorage.setItem('cs_master_config', JSON.stringify(masterConfig));
+  localStorage.setItem('cs_cached_username', accounts.leetcode); 
+
+  // 2. Update Internal State
+  ConfigManager.state = masterConfig;
+
+  // 3. Dispatch Reactive Event
+  window.dispatchEvent(new CustomEvent('cs-settings-update', { 
+    detail: { config: ConfigManager.state } 
+  }));
+
+  ConfigManager.showToast('Settings Saved & Synced');
+}
+
+/**
+ * Hydration Engine: Master Recovery and Init
+ */
+document.addEventListener('DOMContentLoaded', () => {
+  const master = localStorage.getItem('cs_master_config');
+  if (master) {
+    try {
+      const config = JSON.parse(master);
+      
+      // A. Populate Inputs
+      const mapping = {
+        'set-lc-handle': config.accounts?.leetcode,
+        'set-cc-handle': config.accounts?.codechef,
+        'set-cf-handle': config.accounts?.codeforces,
+        'set-display-name': config.profile?.name,
+        'set-avatar-url': config.profile?.avatar,
+        'set-bio': config.profile?.bio,
+        'set-accent-color': config.appearance?.accent,
+        'set-ui-theme': config.appearance?.theme
+      };
+
+      Object.entries(mapping).forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (el && val !== undefined) el.value = val;
+      });
+
+      // B. Populate Checkboxes
+      const checks = {
+        'set-high-contrast': config.appearance?.contrast,
+        'tier-show-rating': config.appearance?.tiers?.rating,
+        'tier-show-solved': config.appearance?.tiers?.solved,
+        'tier-show-heatmap': config.appearance?.tiers?.heatmap,
+        'tier-show-recent': config.appearance?.tiers?.recent,
+        'set-cooldown-enabled': config.sync?.cooldown
+      };
+
+      Object.entries(checks).forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (el && val !== undefined) el.checked = val;
+      });
+
+      // C. Trigger Dashboard Sync
+      ConfigManager.state = config;
+      import('../features/dashboard.js').then(m => {
+        if (m.dashboard && config.accounts?.leetcode) {
+          m.dashboard.syncAllPlatforms(config.accounts.leetcode);
+        }
+      });
+
+    } catch (e) { console.error('Hydration failed', e); }
+  }
+});
+
 ConfigManager.init();
