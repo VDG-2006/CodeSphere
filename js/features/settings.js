@@ -5,6 +5,18 @@
 
 import { ConfigManager } from '../core/config.js';
 
+const escapeHtml = (str = '') => String(str).replace(/[&<>"']/g, match =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[match]
+);
+
+const debounce = (func, delay = 300) => {
+  let timeoutId;
+  return (...args) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => func(...args), delay);
+  };
+};
+
 export const settings = {
   modal: null,
   activeTab: 'accounts',
@@ -49,7 +61,7 @@ export const settings = {
     // Keyboard Shortcuts
     window.addEventListener('keydown', (e) => {
       if (!this.modal || !this.modal.classList.contains('active')) return;
-      
+
       if (e.key === 'Escape') this.close();
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
@@ -94,7 +106,7 @@ export const settings = {
     } catch (e) {
       console.warn('Settings: Error during state sync on close', e);
     }
-    
+
     if (this.modal) {
       this.modal.classList.remove('active');
       document.body.style.overflow = '';
@@ -115,7 +127,6 @@ export const settings = {
 
     // Bind to DOM
     if (document.getElementById('set-lc-handle')) document.getElementById('set-lc-handle').value = accounts.leetcode;
-    if (document.getElementById('set-cc-handle')) document.getElementById('set-cc-handle').value = accounts.codechef;
     if (document.getElementById('set-cf-handle')) document.getElementById('set-cf-handle').value = accounts.codeforces;
 
     if (document.getElementById('set-display-name')) document.getElementById('set-display-name').value = profile.name;
@@ -125,7 +136,7 @@ export const settings = {
     if (document.getElementById('set-ui-theme')) document.getElementById('set-ui-theme').value = appearance.theme;
     if (document.getElementById('set-accent-color')) document.getElementById('set-accent-color').value = appearance.accent;
     if (document.getElementById('set-high-contrast')) document.getElementById('set-high-contrast').checked = appearance.contrast;
-    
+
     if (document.getElementById('tier-show-rating')) document.getElementById('tier-show-rating').checked = appearance.tiers.rating;
     if (document.getElementById('tier-show-solved')) document.getElementById('tier-show-solved').checked = appearance.tiers.solved;
     if (document.getElementById('tier-show-heatmap')) document.getElementById('tier-show-heatmap').checked = appearance.tiers.heatmap;
@@ -138,14 +149,12 @@ export const settings = {
     this.formState = {
       accounts: {
         leetcode: document.getElementById('set-lc-handle')?.value || '',
-        codechef: document.getElementById('set-cc-handle')?.value || '',
         codeforces: document.getElementById('set-cf-handle')?.value || ''
       },
       profile: {
         name: document.getElementById('set-display-name')?.value || '',
         avatar: document.getElementById('set-avatar-url')?.value || '',
         bio: document.getElementById('set-bio')?.value || '',
-        socials: ConfigManager.state?.profile?.socials || {}
       },
       appearance: {
         theme: document.getElementById('set-ui-theme')?.value || 'dark',
@@ -167,13 +176,13 @@ export const settings = {
 
   async save() {
     this.updateFormState();
-    
+
     // 1. Direct Save via Master Controller
     const { saveSettings } = await import('../core/config.js');
     await saveSettings();
 
     this.updatePreview();
-    
+
     // 2. Apply Visual Theme & Accent
     this.applyTheme(this.formState.appearance.theme);
     this.applyAccent(this.formState.appearance.accent);
@@ -182,7 +191,7 @@ export const settings = {
   applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('cs_theme', theme);
-    
+
     // Sync header toggle if it exists
     const headerToggle = document.getElementById('theme-toggle');
     if (headerToggle) headerToggle.checked = (theme === 'dark');
@@ -191,15 +200,14 @@ export const settings = {
   applyAccent(color) {
     const mapping = {
       'lc-green': '#2db55d',
-      'cf-blue': '#1A8CD8',
-      'cc-brown': '#5A4033'
+      'cf-blue': '#1A8CD8'
     };
     document.documentElement.style.setProperty('--color-accent', mapping[color] || '#2db55d');
   },
 
   async handleVerify(platform) {
-    const inputId = `set-${platform === 'leetcode' ? 'lc' : platform === 'codechef' ? 'cc' : 'cf'}-handle`;
-    const statusId = `verify-status-${platform === 'leetcode' ? 'lc' : platform === 'codechef' ? 'cc' : 'cf'}`;
+    const inputId = `set-${platform === 'leetcode' ? 'lc' : 'cf'}-handle`;
+    const statusId = `verify-status-${platform === 'leetcode' ? 'lc' : 'cf'}`;
     const handle = document.getElementById(inputId)?.value;
     const statusEl = document.getElementById(statusId);
 
@@ -214,7 +222,6 @@ export const settings = {
 
     const endpoints = {
       leetcode: `https://alfa-leetcode-api.onrender.com/${handle}/profile`,
-      codechef: `https://codechef-api.vercel.app/${handle}`,
       codeforces: `https://codeforces.com/api/user.info?handles=${handle}`
     };
 
@@ -233,7 +240,7 @@ export const settings = {
       console.warn(`Settings: Verification failed for ${platform}`, e);
       statusEl.textContent = (e.message && e.message !== '[object Object]') ? e.message : 'Verification Failed';
       statusEl.style.color = '#ff6b6b';
-      
+
       // Hint about CORS if it's a generic ERR_FAILED
       if (e.name === 'TypeError' && !window.navigator.onLine) {
         statusEl.textContent = 'Offline';
@@ -243,7 +250,7 @@ export const settings = {
     }
   },
 
-  updatePreview() {
+  updatePreview: debounce(() => {
     const previewArea = document.getElementById('settings-profile-preview');
     if (!previewArea) return;
 
@@ -251,11 +258,14 @@ export const settings = {
     const avatar = document.getElementById('set-avatar-url')?.value || 'https://ui-avatars.com/api/?name=User';
 
     previewArea.innerHTML = `
-      <img src="${avatar}" style="width: 80px; height: 80px; border-radius: 12px; margin-bottom: 16px; object-fit: cover;">
-      <h4 style="margin: 0; font-size: 18px; color: var(--color-text-primary); text-align: center;">${name}</h4>
+      <img id="preview-avatar" style="width: 80px; height: 80px; border-radius: 12px; margin-bottom: 16px; object-fit: cover;">
+      <h4 id="preview-name" style="margin: 0; font-size: 18px; color: var(--color-text-primary); text-align: center;"></h4>
       <p style="margin: 4px 0 0; font-size: 13px; color: var(--color-text-muted);">Preview Mode</p>
     `;
-  },
+
+    document.getElementById('preview-avatar').src = escapeHtml(avatar);
+    document.getElementById('preview-name').textContent = name;
+  }, 300),
 
   async handleImport(e) {
     const file = e.target.files[0];

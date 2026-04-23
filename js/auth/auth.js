@@ -2,58 +2,46 @@
  * auth.js — CodeSphere Authentication & User State Module
  *
  * Responsibilities:
- *  - Initialize Firebase (App, Auth, Firestore).
- *  - Observe auth state and route the user accordingly.
- *  - Handle Sign In, Create Account, and Logout flows.
+ *  - Handle Sign In, Create Account, and Logout flows using Backend API.
+ *  - Manage user session and profile UI updates.
  *  - Run the daily-streak consistency engine on every login.
  */
 
-import { auth, db } from '../core/firebase.js';
-import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-} from 'https://www.gstatic.com/firebasejs/12.12.0/firebase-auth.js';
-import {
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-} from 'https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js';
+import { API_BASE } from '../core/config.js';
 
 // ─────────────────────────────────────────────────────────────────
 // 1. DOM References
 // ─────────────────────────────────────────────────────────────────
 
-const loginEmailInput    = document.getElementById('login-email');
-const loginPasswordInput = document.getElementById('login-password');
-const loginErrorEl       = document.getElementById('login-error');
-const signInBtn          = document.getElementById('sign-in-btn');
+const loginEmailInput    = document.getElementById('login-id'); 
+const loginPasswordInput = document.getElementById('login-pass');
+const loginErrorEl       = document.getElementById('login-error'); // We'll keep the same error IDs or add them to the new UI
+const signInBtn          = document.getElementById('btn-login-main');
 
-const signupEmailInput   = document.getElementById('signup-email');
-const signupPasswordInput= document.getElementById('signup-password');
-const signupNameInput    = document.getElementById('signup-name');
+const signupUsernameInput = document.getElementById('reg-user');
+const signupEmailInput   = document.getElementById('reg-email');
+const signupPasswordInput= document.getElementById('reg-pass');
 const signupErrorEl      = document.getElementById('signup-error');
-const signupBtn          = document.getElementById('signup-btn');
+const signupBtn          = document.getElementById('btn-register-main');
+
+// New Handle Inputs
+const signupLCInput      = document.getElementById('reg-lc');
+
 
 const logoutBtn          = document.getElementById('logout-btn');
 const navStreakCounterEl = document.getElementById('nav-streak-count');
 const dashStreakCounterEl= document.getElementById('dash-streak-val');
-const userNameEl         = document.getElementById('user-name');
-const userHandleEl       = document.getElementById('user-handle');
-const userAvatarEl       = document.getElementById('user-avatar');
+const userNameEl         = document.getElementById('user-name') || document.getElementById('dash-name');
+const userHandleEl       = document.getElementById('user-handle') || document.getElementById('dash-handle');
+const userAvatarEl       = document.getElementById('user-avatar') || document.getElementById('dash-avatar');
 const navAvatarEl        = document.getElementById('nav-avatar');
 
 // ─────────────────────────────────────────────────────────────────
-// 3. Utility Helpers
+// 2. Utility Helpers
 // ─────────────────────────────────────────────────────────────────
 
 /**
  * Returns today's date as an ISO "YYYY-MM-DD" string in local time.
- * Using local time prevents off-by-one errors near midnight UTC.
- *
- * @returns {string}
  */
 const getTodayString = () => {
   const d = new Date();
@@ -64,12 +52,7 @@ const getTodayString = () => {
 };
 
 /**
- * Calculates the difference in whole calendar days between two
- * "YYYY-MM-DD" date strings.
- *
- * @param {string} dateA  - Earlier date string.
- * @param {string} dateB  - Later date string.
- * @returns {number} Non-negative integer day difference.
+ * Calculates the difference in whole calendar days.
  */
 const dayDifference = (dateA, dateB) => {
   const msPerDay = 86_400_000;
@@ -80,9 +63,6 @@ const dayDifference = (dateA, dateB) => {
 
 /**
  * Displays an error message inside a specific error banner.
- *
- * @param {HTMLElement} el     - The error DOM element.
- * @param {string} message     - Human-readable error text.
  */
 const showAuthError = (el, message) => {
   if (el) {
@@ -100,39 +80,11 @@ const clearAuthError = (el) => {
 };
 
 /**
- * Maps Firebase Auth error codes to friendly messages so users never
- * see raw internal codes like "auth/wrong-password".
- *
- * @param {import('firebase/auth').AuthError} error
- * @returns {string}
+ * Syncs sessionStorage with the current user.
  */
-const friendlyAuthError = (error) => {
-  const map = {
-    'auth/invalid-email':            'Please enter a valid email address.',
-    'auth/user-not-found':           'No account found with that email.',
-    'auth/wrong-password':           'Incorrect password — please try again.',
-    'auth/invalid-credential':       'Incorrect email or password.',
-    'auth/email-already-in-use':     'An account with that email already exists.',
-    'auth/weak-password':            'Password must be at least 8 characters.',
-    'auth/too-many-requests':        'Too many attempts. Please wait a moment.',
-    'auth/network-request-failed':   'Network error — check your connection.',
-  };
-  return map[error.code] ?? 'Something went wrong. Please try again.';
-};
-
-/**
- * Syncs sessionStorage with the current Firebase user so the router's
- * `isAuthenticated()` guard stays accurate.
- *
- * @param {import('firebase/auth').User | null} user
- */
-const syncSessionStorage = (user, profile = null) => {
+const syncSessionStorage = (user) => {
   if (user) {
-    sessionStorage.setItem('cs_user', JSON.stringify({
-      uid:   user.uid,
-      email: user.email,
-      leetcodeUsername: profile?.leetcodeUsername || null
-    }));
+    sessionStorage.setItem('cs_user', JSON.stringify(user));
   } else {
     sessionStorage.removeItem('cs_user');
   }
@@ -140,182 +92,125 @@ const syncSessionStorage = (user, profile = null) => {
 
 /**
  * Populates the profile header UI with the authenticated user's info.
- *
- * @param {import('firebase/auth').User} user
- * @param {object | null} profile - Firestore user document data (may be null).
  */
-const populateProfileUI = (user, profile = null) => {
-  const displayName = profile?.displayName ?? user.displayName ?? user.email.split('@')[0];
-  const handle      = `@${displayName.toLowerCase().replace(/\s+/g, '')}`;
+const populateProfileUI = (user) => {
+  const username = user.username || 'User';
+  const handle   = `@${username.toLowerCase().replace(/\s+/g, '')}`;
 
-  if (userNameEl)   userNameEl.textContent   = displayName;
+  if (userNameEl)   userNameEl.textContent   = username;
   if (userHandleEl) userHandleEl.textContent = handle;
 
   if (userAvatarEl) {
-    // Use Firebase photoURL if available; otherwise use a letter-based avatar.
-    const avatarSrc = user.photoURL
-      ?? `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=0a0a0a&color=fff&size=80`;
+    const avatarSrc = user.avatarUrl
+      ?? `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=0a0a0a&color=fff&size=80`;
     
     userAvatarEl.src = avatarSrc;
-    userAvatarEl.alt = `${displayName}'s avatar`;
+    userAvatarEl.alt = `${username}'s avatar`;
     
     if (navAvatarEl) {
       navAvatarEl.src = avatarSrc;
-      navAvatarEl.alt = `${displayName}'s avatar`;
+      navAvatarEl.alt = `${username}'s avatar`;
     }
+    
+    // Top Right Capsule & Dropdown Name
+    const navNameEl = document.getElementById('nav-user-name');
+    const dropNameEl = document.getElementById('dropdown-user-name');
+    if (navNameEl) navNameEl.textContent = username;
+    if (dropNameEl) dropNameEl.textContent = username;
   }
 };
 
 // ─────────────────────────────────────────────────────────────────
-// 4. Streak Engine
+// 3. Streak Engine (Legacy Sync Placeholder)
 // ─────────────────────────────────────────────────────────────────
 
-/**
- * Checks if the user's streak should advance, reset, or stay the same,
- * persists any changes to Firestore, and updates the DOM counter.
- *
- * Streak rules:
- *   - Same day      → no change (already counted today).
- *   - 1 day apart   → streak increments.
- *   - > 1 day apart → streak resets to 1 (chain broken).
- *
- * @param {string} uid - The authenticated user's Firebase UID.
- */
-const checkAndUpdateStreak = async (uid) => {
-  try {
-    const userRef  = doc(db, 'users', uid);
-    const snapshot = await getDoc(userRef);
-
-    if (!snapshot.exists()) {
-      console.warn('checkAndUpdateStreak: user document not found.');
-      return;
-    }
-
-    const data           = snapshot.data();
-    const today          = getTodayString();
-    const lastActive     = data.lastActiveDate ?? today;
-    const currentStreak  = data.currentStreak  ?? 1;
-    const diff           = dayDifference(lastActive, today);
-
-    let newStreak   = currentStreak;
-    let shouldWrite = false;
-
-    if (diff === 0) {
-      // User already logged in today — nothing to update.
-      newStreak   = currentStreak;
-      shouldWrite = false;
-    } else if (diff === 1) {
-      // Consecutive day — keep the streak going.
-      newStreak   = currentStreak + 1;
-      shouldWrite = true;
-    } else {
-      // Gap of more than one day — chain is broken.
-      newStreak   = 1;
-      shouldWrite = true;
-    }
-
-    if (shouldWrite) {
-      await updateDoc(userRef, {
-        currentStreak:  newStreak,
-        lastActiveDate: today,
-      });
-    }
-
-    // Reflect the final streak value in the DOM.
-    if (dashStreakCounterEl) {
-      dashStreakCounterEl.textContent = newStreak;
-    }
-    if (navStreakCounterEl) {
-      navStreakCounterEl.textContent = newStreak;
-    }
-
-  } catch (error) {
-    console.error('checkAndUpdateStreak failed:', error);
-  }
+const checkAndUpdateStreak = async (user) => {
+  // Currently managed by backend or simplified here
+  console.log('Streak check for:', user.username);
 };
 
 // ─────────────────────────────────────────────────────────────────
-// 5. Global Auth State Observer
+// 4. Auth Logic
 // ─────────────────────────────────────────────────────────────────
 
-onAuthStateChanged(auth, async (user) => {
-  syncSessionStorage(user);
-
-  if (user) {
+const initAuth = () => {
+  const userJson = sessionStorage.getItem('cs_user');
+  if (userJson) {
+    const user = JSON.parse(userJson);
     document.body.classList.add('is-logged-in');
-
-    // Fetch the extended profile from Firestore for the display name etc.
-    let profile = null;
-    try {
-      const snapshot = await getDoc(doc(db, 'users', user.uid));
-      if (snapshot.exists()) profile = snapshot.data();
-    } catch (error) {
-      console.error('Failed to fetch user profile:', error);
-    }
-
-    populateProfileUI(user, profile);
-    syncSessionStorage(user, profile);
-
+    populateProfileUI(user);
+    
     // Set dynamic greeting
-    const displayName = profile?.displayName ?? user.displayName ?? user.email;
     if (window.CodeSphere?.setGreeting) {
-      window.CodeSphere.setGreeting(displayName);
+      window.CodeSphere.setGreeting(user.username);
     }
 
-    // Run the streak engine every time a session is established.
-    await checkAndUpdateStreak(user.uid);
-
-    // Call LeetCode API if handle exists
-    if (profile?.leetcodeUsername && window.CodeSphere?.fetchLeetCodeStats) {
-        window.CodeSphere.fetchLeetCodeStats(profile.leetcodeUsername);
+    // Call stats API if handles exist
+    if (user.handles?.leetcode && window.CodeSphere?.dashboard?.syncAllPlatforms) {
+        window.CodeSphere.dashboard.syncAllPlatforms(user.handles.leetcode);
     }
 
-    // SPA Router - Dashboard logic
-    if (window.CodeSphere?.router?.MapsTo) {
-      window.CodeSphere.router.MapsTo('home');
+    // SPA Router sync
+    if (window.CodeSphere?.switchView) {
+      const currentRoute = window.location.hash.replace('#', '');
+      // If we are on getting-started or login/signup routes, move to home after login
+      if (!currentRoute || currentRoute === 'getting-started' || currentRoute === 'landing' || currentRoute === 'login' || currentRoute === 'signup') {
+        window.CodeSphere.switchView('home');
+        window.location.hash = '#home';
+      }
     }
 
+    // Hide Auth Modal if open
+    document.getElementById('auth-modal')?.classList.add('hidden');
   } else {
     document.body.classList.remove('is-logged-in');
-    
-    // Clear any stale UI state and route back to landing.
-    if (userNameEl)        userNameEl.textContent        = 'Guest User';
-    if (userHandleEl)      userHandleEl.textContent      = '@guest';
-    if (dashStreakCounterEl)  dashStreakCounterEl.textContent = '0';
-    if (navStreakCounterEl)  navStreakCounterEl.textContent = '0';
-
-    if (window.CodeSphere?.router?.MapsTo) {
-      window.CodeSphere.router.MapsTo('landing');
+    // If NOT logged in, ensure we are on getting-started
+    if (window.CodeSphere?.switchView) {
+      const currentRoute = window.location.hash.replace('#', '');
+      if (currentRoute !== 'getting-started') {
+        window.CodeSphere.switchView('getting-started');
+        window.location.hash = '#getting-started';
+      }
     }
   }
-});
+};
 
 // ─────────────────────────────────────────────────────────────────
-// 6. Sign In
+// 5. Sign In
 // ─────────────────────────────────────────────────────────────────
 
 signInBtn?.addEventListener('click', async (e) => {
   e.preventDefault();
   clearAuthError(loginErrorEl);
 
-  const email    = loginEmailInput?.value.trim() ?? '';
+  const identifier = loginEmailInput?.value.trim() ?? '';
   const password = loginPasswordInput?.value ?? '';
 
-  if (!email || !password) {
-    showAuthError(loginErrorEl, 'Please enter your email and password.');
+  if (!identifier || !password) {
+    showAuthError(loginErrorEl, 'Please enter your email or username.');
     return;
   }
 
-  // Show a loading state on the button.
   signInBtn.disabled     = true;
   signInBtn.textContent  = 'Signing in…';
 
   try {
-    await signInWithEmailAndPassword(auth, email, password);
-    // onAuthStateChanged fires automatically — no manual routing needed.
-    if (loginPasswordInput) loginPasswordInput.value = '';
+    const response = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier, password })
+    });
+
+    const result = await response.json();
+    if (result.success) {
+      syncSessionStorage(result.data);
+      initAuth();
+      if (loginPasswordInput) loginPasswordInput.value = '';
+    } else {
+      showAuthError(loginErrorEl, result.message || 'Invalid credentials');
+    }
   } catch (error) {
-    showAuthError(loginErrorEl, friendlyAuthError(error));
+    showAuthError(loginErrorEl, 'Server connection error');
   } finally {
     signInBtn.disabled    = false;
     signInBtn.textContent = 'Sign In';
@@ -323,18 +218,18 @@ signInBtn?.addEventListener('click', async (e) => {
 });
 
 // ─────────────────────────────────────────────────────────────────
-// 7. Create Account
+// 6. Create Account
 // ─────────────────────────────────────────────────────────────────
 
 signupBtn?.addEventListener('click', async (e) => {
   e.preventDefault();
   clearAuthError(signupErrorEl);
 
-  const email = signupEmailInput?.value.trim() ?? '';
+  const username = signupUsernameInput?.value.trim() ?? '';
+  const email    = signupEmailInput?.value.trim() ?? '';
   const password = signupPasswordInput?.value ?? '';
-  const displayName = signupNameInput?.value.trim() ?? '';
 
-  if (!email || !password || !displayName) {
+  if (!username || !email || !password) {
     showAuthError(signupErrorEl, 'Please fill out all required fields.');
     return;
   }
@@ -343,32 +238,26 @@ signupBtn?.addEventListener('click', async (e) => {
   signupBtn.textContent = 'Creating account…';
 
   try {
-    const credential = await createUserWithEmailAndPassword(auth, email, password);
-    const { uid }    = credential.user;
-    const today      = getTodayString();
+    const handles = {
+      leetcode: signupLCInput?.value.trim() || ''
+    };
 
-    // Bootstrap a Firestore user profile document.
-    await setDoc(doc(db, 'users', uid), {
-      uid,
-      email,
-      displayName,
-      leetcodeUsername: '',
-      streak: 1, // Legacy streak key mentioned by user
-      currentStreak:  1,
-      lastActiveDate: today,
-      createdAt:      today,
-      leetcode: {
-        total:  0,
-        easy:   0,
-        medium: 0,
-        hard:   0,
-      },
+    const response = await fetch(`${API_BASE}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, email, password, handles })
     });
 
-    // onAuthStateChanged fires next and handles routing + UI updates.
-    if (signupPasswordInput) signupPasswordInput.value = '';
+    const result = await response.json();
+    if (result.success) {
+      syncSessionStorage(result.data);
+      initAuth();
+      if (signupPasswordInput) signupPasswordInput.value = '';
+    } else {
+      showAuthError(signupErrorEl, result.message || 'Signup failed');
+    }
   } catch (error) {
-    showAuthError(signupErrorEl, friendlyAuthError(error));
+    showAuthError(signupErrorEl, 'Server connection error');
   } finally {
     signupBtn.disabled    = false;
     signupBtn.textContent = 'Create Account';
@@ -376,27 +265,35 @@ signupBtn?.addEventListener('click', async (e) => {
 });
 
 // ─────────────────────────────────────────────────────────────────
-// 8. Logout
+// 7. Logout
 // ─────────────────────────────────────────────────────────────────
 
-logoutBtn?.addEventListener('click', async (e) => {
+logoutBtn?.addEventListener('click', (e) => {
   e.preventDefault();
-
-  try {
-    await signOut(auth);
-    // onAuthStateChanged will fire with user = null → routes to 'login'.
-  } catch (error) {
-    console.error('Logout failed:', error);
-  }
+  syncSessionStorage(null);
+  initAuth();
 });
 
 // ─────────────────────────────────────────────────────────────────
-// 9. Public API
+// 8. Bootstrap
 // ─────────────────────────────────────────────────────────────────
 
-// Expose utilities that other modules (e.g. feed.js) may need.
+document.addEventListener('DOMContentLoaded', initAuth);
+
+// 9. UI Interactions (Dropdowns)
+document.addEventListener('click', (e) => {
+  const dropdown = document.getElementById('profile-dropdown');
+  const capsule = document.getElementById('nav-profile-capsule');
+  
+  if (dropdown && !dropdown.contains(e.target) && !capsule.contains(e.target)) {
+    dropdown.classList.add('hidden');
+  }
+});
+
+// Public API
 window.CodeSphere = window.CodeSphere ?? {};
 window.CodeSphere.auth = {
-  getCurrentUser: () => auth.currentUser,
-  db,
+  getCurrentUser: () => JSON.parse(sessionStorage.getItem('cs_user') || 'null'),
+  isLoggedIn: () => !!sessionStorage.getItem('cs_user'),
+  initAuth
 };

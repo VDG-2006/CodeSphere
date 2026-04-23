@@ -9,3 +9,11 @@ Thumbs.db
 
 # ── Node (if you ever add a build step) ─────────────────────
 node_modules/
+
+# ── MongoDB Data, Logs, & Binaries ─────────────────────────
+server/data/db/
+server/data/log/
+server/mongodb/
+
+
+

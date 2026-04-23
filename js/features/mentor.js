@@ -73,14 +73,37 @@ closeBtn?.addEventListener('click', closeMentor);
 // Chat Helpers
 // ─────────────────────────────────────────────────────────────────
 
-const appendMessage = (text, type = 'bot') => {
+const appendMessage = (text, type = 'bot', isHtml = false) => {
   if (!chatBody) return;
   const msg = document.createElement('div');
   msg.className = `ai-message ai-message--${type}`;
-  msg.textContent = text;
+  if (isHtml) {
+    msg.innerHTML = text;
+  } else {
+    msg.textContent = text;
+  }
   chatBody.appendChild(msg);
   chatBody.scrollTop = chatBody.scrollHeight;
   return msg;
+};
+
+const parseMarkdown = (text) => {
+  if (text.length > 4000) text = text.substring(0, 4000) + '... (Truncated for performance)';
+  
+  let safeText = String(text).replace(/[&<>"']/g, match => 
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[match]
+  );
+
+  safeText = safeText
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/__(.*?)__/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/_(.*?)_/g, '<em>$1</em>')
+      .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\n/g, '<br>');
+
+  return safeText;
 };
 
 // ─────────────────────────────────────────────────────────────────
@@ -119,7 +142,7 @@ const handleAsk = async () => {
 
   // Remove loading and show reply
   loadingMsg.remove();
-  appendMessage(reply, 'bot');
+  appendMessage(parseMarkdown(reply), 'bot', true);
   
   if (sendBtn) sendBtn.disabled = false;
 };

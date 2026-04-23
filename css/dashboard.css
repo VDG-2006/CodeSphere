@@ -139,6 +139,10 @@
   grid-template-columns: repeat(3, 1fr);
 }
 
+.dashboard-row--tier1 .dash-card {
+  min-height: 180px;
+}
+
 /* Tier 3 & 4: Full Width Spanning */
 .dashboard-row--tier3, .dashboard-row--tier4 {
   grid-template-columns: 1fr;

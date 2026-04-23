@@ -5,19 +5,23 @@
 
 // 1. Firebase Credentials (RESTORED)
 export const firebaseConfig = {
-  apiKey:            'AIzaSyCmJl9Y_nJ3NRoK5Ha0XH3KUoBqnaboIbs',
-  authDomain:        'codesphere-80ae8.firebaseapp.com',
-  projectId:         'codesphere-80ae8',
-  storageBucket:     'codesphere-80ae8.firebasestorage.app',
+  apiKey: 'AIzaSyCmJl9Y_nJ3NRoK5Ha0XH3KUoBqnaboIbs',
+  authDomain: 'codesphere-80ae8.firebaseapp.com',
+  projectId: 'codesphere-80ae8',
+  storageBucket: 'codesphere-80ae8.firebasestorage.app',
   messagingSenderId: '185869657422',
-  appId:             '1:185869657422:web:f55605a7675a5ae8846a1f',
-  measurementId:     'G-X3FTD9SMXG',
+  appId: '1:185869657422:web:f55605a7675a5ae8846a1f',
+  measurementId: 'G-X3FTD9SMXG',
 };
 
 // 2. AI Mentor Key (RESTORED)
 export const GEMINI_API_KEY = 'YOUR_KEY_HERE';
 
-// 3. Reactive Config Manager
+// 3. Backend API Configuration
+export const API_BASE = '/api';
+
+
+// 4. Reactive Config Manager
 export const ConfigManager = {
   keys: {
     accounts: 'cs_accounts',
@@ -27,7 +31,7 @@ export const ConfigManager = {
   },
 
   defaults: {
-    accounts: { leetcode: '', codechef: '', codeforces: '' },
+    accounts: { leetcode: '', codeforces: '' },
     profile: { name: '', handle: '', avatar: '', bio: '', socials: { github: '', linkedin: '', x: '' } },
     appearance: { theme: 'dark', accent: 'lc-green', contrast: false, tiers: { rating: true, solved: true, heatmap: true, recent: true } },
     sync: { frequency: 'manual', cooldown: true }
@@ -58,16 +62,43 @@ export const ConfigManager = {
     Object.keys(this.keys).forEach(category => {
       localStorage.setItem(this.keys[category], JSON.stringify(this.state[category]));
     });
-    
-    window.dispatchEvent(new CustomEvent('cs-settings-update', { 
-      detail: { config: this.state } 
+
+    window.dispatchEvent(new CustomEvent('cs-settings-update', {
+      detail: { config: this.state }
     }));
 
     this.showToast('Configuration Saved Successfully');
   },
 
   trackDirty(formState) {
-    return JSON.stringify(formState) !== JSON.stringify(this.state);
+    function stringifyWithSortedKeys(obj) {
+      // Helper function to recursively sort the keys
+      function sortKeys(item) {
+        // Return primitives and null as-is
+        if (item === null || typeof item !== 'object') {
+          return item;
+        }
+
+        // If it's an array, recursively map over its items
+        if (Array.isArray(item)) {
+          return item.map(sortKeys);
+        }
+
+        // If it's a plain object, sort its keys and recreate the object
+        const sortedObj = {};
+        const sortedKeys = Object.keys(item).sort();
+
+        for (const key of sortedKeys) {
+          sortedObj[key] = sortKeys(item[key]);
+        }
+
+        return sortedObj;
+      }
+
+      // Sort the object, then stringify the deterministic result
+      return JSON.stringify(sortKeys(obj));
+    }
+    return stringifyWithSortedKeys(formState) !== stringifyWithSortedKeys(this.state);
   },
 
   validateSchema(json) {
@@ -119,7 +150,6 @@ export const ConfigManager = {
 export async function saveSettings() {
   const accounts = {
     leetcode: document.getElementById('set-lc-handle')?.value || '',
-    codechef: document.getElementById('set-cc-handle')?.value || '',
     codeforces: document.getElementById('set-cf-handle')?.value || ''
   };
 
@@ -145,23 +175,39 @@ export async function saveSettings() {
     accounts,
     profile,
     appearance,
-    sync: { cooldown: document.getElementById('set-cooldown-enabled')?.checked ?? true }
+    sync: { frequency: 'manual', cooldown: document.getElementById('set-cooldown-enabled')?.checked ?? true }
   };
 
   // 1. Master Persistence
   localStorage.setItem('cs_master_config', JSON.stringify(masterConfig));
-  localStorage.setItem('cs_cached_username', accounts.leetcode); 
+  localStorage.setItem('cs_cached_username', accounts.leetcode);
 
-  // 2. Update Internal State
+  // 2. BACKEND PERSISTENCE
+  const user = JSON.parse(sessionStorage.getItem('cs_user') || '{}');
+  if (user._id) {
+    try {
+      await fetch(`${API_BASE}/user/handles`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user._id, handles: accounts })
+      });
+      console.log('Backend Synced');
+    } catch (e) {
+      console.error('Backend Sync Failed', e);
+    }
+  }
+
+  // 3. Update Internal State
   ConfigManager.state = masterConfig;
 
-  // 3. Dispatch Reactive Event
-  window.dispatchEvent(new CustomEvent('cs-settings-update', { 
-    detail: { config: ConfigManager.state } 
+  // 4. Dispatch Reactive Event
+  window.dispatchEvent(new CustomEvent('cs-settings-update', {
+    detail: { config: ConfigManager.state }
   }));
 
   ConfigManager.showToast('Settings Saved & Synced');
 }
+
 
 /**
  * Hydration Engine: Master Recovery and Init
@@ -171,11 +217,10 @@ document.addEventListener('DOMContentLoaded', () => {
   if (master) {
     try {
       const config = JSON.parse(master);
-      
+
       // A. Populate Inputs
       const mapping = {
         'set-lc-handle': config.accounts?.leetcode,
-        'set-cc-handle': config.accounts?.codechef,
         'set-cf-handle': config.accounts?.codeforces,
         'set-display-name': config.profile?.name,
         'set-avatar-url': config.profile?.avatar,

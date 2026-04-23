@@ -3,15 +3,23 @@
  * Principal Architect Hub — Resilient Multi-Platform Sync Engine
  */
 
-import { auth, db } from '../core/firebase.js';
-import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js';
-import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.12.0/firebase-auth.js';
+import { API_BASE } from '../core/config.js';
 
-const ALFA_API_BASE = 'https://alfa-leetcode-api.onrender.com';
-const CC_PRIMARY = 'https://codechefapi.vercel.app';
-const CC_BACKUP = 'https://chef-api.vercel.app';
-const CF_API_BASE = 'https://codeforces.com/api';
 const SYNC_COOLDOWN = 60 * 1000; // 60 seconds
+
+const safeParse = (jsonString) => {
+  if (!jsonString || typeof jsonString !== 'string') throw new Error('Proxy returned empty payload.');
+  try { return JSON.parse(jsonString); }
+  catch (e) {
+    const err = new Error('Proxy payload failed to parse.');
+    err.name = 'TypeError';
+    throw err;
+  }
+};
+
+const escapeHtml = (str = '') => String(str).replace(/[&<>"']/g, match =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[match]
+);
 
 export const dashboard = {
   state: {
@@ -21,14 +29,23 @@ export const dashboard = {
 
   async init() {
     this.loadState();
-    this.setupEventListeners();
-    this.bindAuthListener();
-    this.startCooldownTimer();
+    this.setupListeners();
+
+    // Auto-sync if we have a session
+    const sessionUser = JSON.parse(sessionStorage.getItem('cs_user') || '{}');
+    const handle = sessionUser.leetcode || sessionUser.username;
+
+    if (handle) {
+      this.syncAllPlatforms(handle);
+    }
   },
 
-  setupEventListeners() {
-    document.getElementById('dash-sync-btn')?.addEventListener('click', () => {
-      this.refreshData();
+  setupListeners() {
+    const syncBtn = document.getElementById('dash-sync-btn');
+    syncBtn?.addEventListener('click', () => {
+      const sessionUser = JSON.parse(sessionStorage.getItem('cs_user') || '{}');
+      const handle = sessionUser.leetcode || sessionUser.username;
+      if (handle) this.syncAllPlatforms(handle);
     });
 
     // Reactive Settings Integration
@@ -39,34 +56,37 @@ export const dashboard = {
   },
 
   bindAuthListener() {
-    onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        let handle = localStorage.getItem('cs_cached_username');
-        if (!handle) {
-          try {
-            const snap = await getDoc(doc(db, 'users', user.uid));
-            handle = snap.exists() ? snap.data().leetcodeUsername : user.displayName?.split(' ')[0].toLowerCase();
-            if (handle) localStorage.setItem('cs_cached_username', handle);
-          } catch (e) { handle = 'dev-user'; }
-        }
-        
-        // Initial render from cache if available, otherwise fetch
+    // Replaced Firebase listener with simple session check
+    const userJson = sessionStorage.getItem('cs_user');
+    if (userJson) {
+      const user = JSON.parse(userJson);
+      let handle = user.handles?.leetcode || localStorage.getItem('cs_cached_username');
+
+      if (handle) {
         if (this.state.data) {
           this.renderFullDashboard(this.state.data);
         } else {
           this.syncAllPlatforms(handle);
         }
       }
-    });
+    }
   },
 
-  async fetchWithTimeout(url, timeout = 10000) {
+
+  async fetchWithTimeout(url, timeout = 5000) {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
 
     try {
       const response = await fetch(url, { signal: controller.signal });
       clearTimeout(id);
+
+      if (response.status === 429) {
+        const err = new Error('Rate Limited');
+        err.name = 'RateLimitError';
+        throw err;
+      }
+
       if (response.status === 404) return { success: false, status: 404 }; // Immediate halt for missing user
       if (response.status === 402) {
         const err = new Error('API Quota Exceeded');
@@ -74,12 +94,17 @@ export const dashboard = {
         throw err;
       }
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return await response.json();
+      const json = await response.json();
+
+      // Safely unwrap AllOrigins proxy contents
+      if (json.contents) return safeParse(json.contents);
+      return json;
     } catch (e) {
       clearTimeout(id);
-      if (e.name === 'AbortError') e.displayMsg = 'Request timed out';
+      if (e.name === 'AbortError') e.displayMsg = 'Connection timed out';
       else if (e.name === 'TypeError') e.displayMsg = 'Connection Blocked';
       else if (e.name === 'QuotaError') e.displayMsg = 'API Limit Reached';
+      else if (e.name === 'RateLimitError') e.displayMsg = 'Busy (Rate Limited)';
       throw e;
     }
   },
@@ -87,55 +112,25 @@ export const dashboard = {
   updateUIWithNullState(platformPrefix) {
     const ids = {
       lc: ['dash-total-solved', 'dash-easy-count', 'dash-medium-count', 'dash-hard-count', 'dash-contest-rating', 'dash-contest-rank', 'dash-contest-attended', 'dash-rank'],
-      cc: ['cc-rating', 'cc-stars', 'cc-rank', 'cc-max-rating', 'cc-total', 'cc-full', 'cc-partial'],
       cf: ['cf-rating', 'cf-rank', 'cf-attended', 'cf-total']
     };
 
     const targets = platformPrefix ? (ids[platformPrefix] || []) : Object.values(ids).flat();
     targets.forEach(id => {
       const el = document.getElementById(id);
-      if (el) el.innerHTML = '<span class="mono-val">--</span>';
+      if (el) el.textContent = '--';
     });
-    
+
     // Sidebar Aggregator Null States
     if (!platformPrefix) {
-      ['sidebar-total-solved', 'sidebar-lc-solved', 'sidebar-cc-solved', 'sidebar-cf-solved'].forEach(id => {
+      ['sidebar-total-solved', 'sidebar-lc-solved', 'sidebar-cf-solved'].forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.innerHTML = '<span class="mono-val">--</span>';
+        if (el) el.textContent = '--';
       });
     }
   },
 
-  async fetchCodeChefData(handle) {
-    // 1. Identity Check / Null-State Guard
-    if (!handle || handle.trim() === "") {
-      this.updateUIWithNullState('cc');
-      return { success: false, status: 'NO_HANDLE' };
-    }
 
-    const targetUrl = `${CC_PRIMARY}/${handle}`;
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-
-    try {
-      const response = await fetch(proxyUrl);
-      if (!response.ok) throw new Error('Proxy Network Error');
-      
-      const json = await response.json();
-      if (!json.contents) throw new Error('No contents from proxy');
-      
-      const content = JSON.parse(json.contents);
-      
-      if (!content || content.status === 'error' || content.success === false) {
-        throw new Error('User Not Found');
-      }
-
-      return { success: true, data: content };
-    } catch (e) {
-      console.warn('CodeChef Sync Failed:', e);
-      this.updateUIWithNullState('cc');
-      return { success: false, status: 'SYNC_ERROR' };
-    }
-  },
 
   getMockFallback(platform, handle) {
     // Returning null/empty states ensures the UI renders '--' for unauthenticated/unconnected users
@@ -144,7 +139,6 @@ export const dashboard = {
       lcContest: { rating: 0, globalRank: 0, attended: 0 },
       lcCalendar: { submissionCalendar: {} },
       lcRecent: [],
-      ccProfile: { currentRating: 0, globalRank: 0, stars: '--', totalSolved: 0 },
       cfInfo: { result: [] },
       cfStatus: { result: [] }
     };
@@ -152,279 +146,273 @@ export const dashboard = {
   },
 
   async refreshData() {
-    const now = Date.now();
-    if (now - this.state.lastSyncTime < SYNC_COOLDOWN) return;
-    
     const handle = localStorage.getItem('cs_cached_username') || 'dev-user';
+    const lastSyncTime = parseInt(localStorage.getItem('cs_last_sync_time') || '0', 10);
+    const cachedData = localStorage.getItem('cs_dash_cached_data');
+
+    if (Date.now() - lastSyncTime < SYNC_COOLDOWN && cachedData) {
+      const parsed = safeParse(cachedData);
+      if (parsed) {
+        this.state.data = parsed;
+        return this.renderFullDashboard(parsed);
+      }
+    }
+
     this.syncAllPlatforms(handle);
   },
 
   async syncAllPlatforms(handle) {
     const syncBtn = document.getElementById('dash-sync-btn');
     const cards = document.querySelectorAll('.dash-card');
-    
+
     if (syncBtn) syncBtn.disabled = true;
     cards.forEach(c => c.classList.add('is-syncing'));
 
-    // 1. Identity Check
-    if (!handle || handle.trim() === "") {
-      this.updateUIWithNullState();
+    handle = handle || localStorage.getItem('cs_cached_username') || 'itz_vdg_01';
+    
+    try {
+      const results = await Promise.allSettled([
+        this.fetchWithTimeout(`${API_BASE}/stats/leetcode/${handle}?t=${Date.now()}`),
+        this.fetchWithTimeout(`${API_BASE}/stats/codeforces/${handle}?t=${Date.now()}`),
+        this.fetchWithTimeout(`${API_BASE}/stats/codeforces_rating/${handle}?t=${Date.now()}`),
+        this.fetchWithTimeout(`${API_BASE}/stats/codeforces/${handle}/status?t=${Date.now()}`),
+        this.fetchWithTimeout(`${API_BASE}/stats/leetcode/${handle}/calendar?t=${Date.now()}`),
+        this.fetchWithTimeout(`${API_BASE}/stats/leetcode/${handle}/recent?t=${Date.now()}`)
+      ]);
+
+      const data = {};
+      const platformKeys = ['leetcode', 'cfInfo', 'cfRating', 'cfStatus', 'lcCalendar', 'lcRecent'];
+
+      results.forEach((res, i) => {
+        const key = platformKeys[i];
+        if (res.status === 'fulfilled' && res.value.success) {
+          data[key] = res.value.data;
+        } else {
+          data[key] = this.getMockFallback(key, handle);
+        }
+      });
+
+      this.state.data = data;
+      this.saveState();
+      this.renderFullDashboard(data);
+      this.startCooldownTimer();
+    } catch (e) {
+      console.error('[Dash] Sync failed:', e);
+    } finally {
       if (syncBtn) syncBtn.disabled = false;
       cards.forEach(c => c.classList.remove('is-syncing'));
-      return;
-    }
-
-    const results = await Promise.allSettled([
-      // LeetCode Data (Using Proxy for Stability)
-      (async () => {
-        const url = `${ALFA_API_BASE}/${handle}/solved`;
-        const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-        const res = await fetch(proxy);
-        const json = await res.json();
-        return JSON.parse(json.contents);
-      })(),
-      (async () => {
-        const url = `${ALFA_API_BASE}/${handle}/contest`;
-        const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-        const res = await fetch(proxy);
-        const json = await res.json();
-        return JSON.parse(json.contents);
-      })(),
-      this.fetchWithTimeout(`${ALFA_API_BASE}/${handle}/calendar`),
-      this.fetchWithTimeout(`${ALFA_API_BASE}/${handle}/acSubmission?limit=10`),
-      // CodeChef Data (Resilient Engine)
-      this.fetchCodeChefData(handle),
-      // CodeForces Data
-      this.fetchWithTimeout(`${CF_API_BASE}/user.info?handles=${handle}`),
-      this.fetchWithTimeout(`${CF_API_BASE}/user.status?handle=${handle}&from=1&count=50`)
-    ]);
-
-    const data = {};
-    const platformKeys = ['lcSolved', 'lcContest', 'lcCalendar', 'lcRecent', 'ccProfile', 'cfInfo', 'cfStatus'];
-
-    results.forEach((res, i) => {
-      const key = platformKeys[i];
-      if (res.status === 'fulfilled') {
-        data[key] = res.value;
-      } else {
-        console.warn(`Sync Error [${key}]:`, res.reason);
-        // Hint about Blocked/CORS
-        const reasonStr = String(res.reason);
-        if (res.reason?.name === 'TypeError' || reasonStr.includes('Failed to fetch') || reasonStr.includes('NetworkError')) {
-           this.showSyncHint('Connections Blocked by Client/CORS');
-        } else if (res.reason?.name === 'QuotaError') {
-           this.showSyncHint('Cloud API Limit Reached (402)');
-        }
-        
-        // Load fallback mock data so UI isn't empty
-        data[key] = this.getMockFallback(key, handle);
-      }
-    });
-
-    this.state.data = data;
-    this.state.lastSyncTime = Date.now();
-    this.saveState();
-    this.renderFullDashboard(data);
-    this.startCooldownTimer();
-
-    cards.forEach(c => c.classList.remove('is-syncing'));
-  },
-
-  showSyncHint(msg) {
-    const status = document.getElementById('sync-status-msg');
-    if (status) {
-      status.textContent = msg;
-      status.style.color = '#ff6b6b';
-      setTimeout(() => { if (status.textContent === msg) status.textContent = ''; }, 6000);
     }
   },
 
   renderFullDashboard(data) {
-    // 1. Unified Submissions (Fusion)
-    const fusedRecent = this.fuseSubmissions(data.lcRecent, data.cfStatus);
-    this.renderRecentAC(fusedRecent);
+    // 1. Data Fusion
+    try {
+      const fusedRecent = this.fuseSubmissions(data.lcRecent, data.cfStatus);
+      this.renderRecentAC(fusedRecent);
+      if (data.lcCalendar?.submissionCalendar) this.renderFusedHeatmap(data.lcCalendar.submissionCalendar);
+    } catch (e) { console.warn('[Dash] Fusion failed:', e); }
 
-    // 2. Platform Solved Counts (Aggregator)
+    // 2. Platform Cards & Graphs
+    this.renderLeetCodeCard(data.leetcode);
+    this.renderCodeForcesCard(data.cfInfo, data.cfRating);
+
     const counts = this.calculateSolvedCounts(data);
-    this.updateSidebarAggregator(counts, data);
-
-    // 3. Platform Cards
-    this.renderLeetCodeCards(data.lcSolved, data.lcContest);
-    this.renderCodeChefCard(data.ccProfile);
-    this.renderCodeForcesCard(data.cfInfo, counts.cf);
-
-    // 4. Unified Heatmap
-    this.renderFusedHeatmap(data.lcCalendar, data.cfStatus);
-  },
-
-  fuseSubmissions(lcRecent, cfStatus) {
-    let combined = [];
-
-    // Process LC
-    if (lcRecent?.submission) {
-      combined = lcRecent.submission.map(s => ({
-        title: s.title,
-        timestamp: parseInt(s.timestamp),
-        platform: 'LC'
-      }));
-    }
-
-    // Process CF (Filtered for OK)
-    if (cfStatus?.result) {
-      const cfSolved = cfStatus.result
-        .filter(s => s.verdict === 'OK')
-        .map(s => ({
-          title: s.problem.name,
-          timestamp: s.creationTimeSeconds,
-          platform: 'CF'
-        }));
-      combined = [...combined, ...cfSolved];
-    }
-
-    return combined.sort((a, b) => b.timestamp - a.timestamp).slice(0, 5);
+    this.updateSidebarAggregator(counts);
   },
 
   calculateSolvedCounts(data) {
-    const lc = parseInt(data.lcSolved?.solvedProblem) || 0;
-    const cc = parseInt(data.ccProfile?.data?.fullySolved?.count) || parseInt(data.ccProfile?.totalSolved) || 0;
+    const lcSolved = data.leetcode?.totalSolved || 0;
     
-    // CF Deep Sync logic
-    let cf = 0;
+    let cfSolved = 0;
     if (data.cfStatus?.result) {
-      const unique = new Set();
-      data.cfStatus.result.forEach(s => {
-        if (s.verdict === 'OK') unique.add(`${s.problem.contestId}-${s.problem.index}`);
+      const uniqueSolved = new Set();
+      data.cfStatus.result.forEach(sub => {
+        if (sub.verdict === 'OK' && sub.problem) {
+          uniqueSolved.add(`${sub.problem.contestId}-${sub.problem.index}`);
+        }
       });
-      cf = unique.size;
+      cfSolved = uniqueSolved.size;
     }
 
-    const total = lc + cc + cf;
-    return { lc, cc, cf, total: isNaN(total) ? 0 : total };
+    return {
+      lc: lcSolved,
+      cf: cfSolved,
+      total: lcSolved + cfSolved
+    };
   },
 
-  updateSidebarAggregator(counts, data) {
-    const totalEl = document.getElementById('sidebar-total-solved');
-    const lcEl = document.getElementById('sidebar-lc-solved');
-    const ccEl = document.getElementById('sidebar-cc-solved');
-    const cfEl = document.getElementById('sidebar-cf-solved');
-
-    if (totalEl) totalEl.textContent = counts.total || '--';
-    if (lcEl) lcEl.textContent = counts.lc || '--';
-    
-    // Prioritize fullySolved.count for CodeChef in aggregator
-    if (ccEl) {
-      const ccFull = parseInt(data.ccProfile?.data?.fullySolved?.count);
-      ccEl.textContent = !isNaN(ccFull) ? ccFull : (counts.cc || '--');
-    }
-    
-    if (cfEl) cfEl.textContent = counts.cf || '--';
-    
-    // Identity Rank Fallback
-    const rankEl = document.getElementById('dash-rank');
-    if (rankEl) rankEl.textContent = data?.lcSolved?.ranking?.toLocaleString() || '--';
-  },
-
-  renderLeetCodeCards(solved, contest) {
-    // Tier 1
-    const rat = document.getElementById('dash-contest-rating');
-    const rnk = document.getElementById('dash-contest-rank');
-    const att = document.getElementById('dash-contest-attended');
-    if (rat) rat.textContent = Math.round(contest?.contestRating || 0) || '--';
-    if (rnk) rnk.textContent = contest?.contestGlobalRanking?.toLocaleString() || '--';
-    if (att) att.textContent = contest?.contestAttend || '--';
-
-    // Tier 2 Donut
-    if (solved) {
-      const total = solved.solvedProblem || 1;
-      const easy = solved.easySolved || 0;
-      const med = solved.mediumSolved || 0;
-      const easyPct = (easy / total) * 100;
-      const medPct = (med / total) * 100;
-      
-      const donut = document.querySelector('.dash-card.card--solved .donut-chart-container');
-      if (donut) {
-        const eEnd = easyPct;
-        const mEnd = easyPct + medPct;
-        donut.style.background = `conic-gradient(var(--color-easy) 0% ${eEnd}%, var(--color-medium) ${eEnd}% ${mEnd}%, var(--color-hard) ${mEnd}% 100%)`;
-      }
-      const ct = document.getElementById('dash-total-solved');
-      if (ct) ct.textContent = solved.solvedProblem;
-      if (document.getElementById('dash-easy-count')) document.getElementById('dash-easy-count').textContent = easy;
-      if (document.getElementById('dash-medium-count')) document.getElementById('dash-medium-count').textContent = med;
-      if (document.getElementById('dash-hard-count')) document.getElementById('dash-hard-count').textContent = solved.hardSolved || 0;
-    }
-  },
-
-  renderCodeChefCard(result) {
-    const nodes = {
-      rating: document.getElementById('cc-rating'),
-      stars: document.getElementById('cc-stars'),
-      rank: document.getElementById('cc-rank'),
-      maxRating: document.getElementById('cc-max-rating'),
-      total: document.getElementById('cc-total'),
-      cardHeader: document.querySelector('.card--contest h3')
+  updateSidebarAggregator(counts) {
+    const mapping = {
+      'sidebar-total-solved': counts.total,
+      'sidebar-lc-solved': counts.lc,
+      'sidebar-cf-solved': counts.cf,
+      'sidebar-total-solved-home': counts.total,
+      'sidebar-lc-solved-home': counts.lc
     };
 
-    // 1. Circuit Breaker / Failure Handler
-    if (!result || !result.success) {
-      if (nodes.rating) {
-        nodes.rating.textContent = '--';
-        nodes.rating.style.fontFamily = 'JetBrains Mono, monospace';
+    Object.entries(mapping).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (el) {
+        gsap.to(el, {
+          duration: 1.5,
+          textContent: val,
+          roundProps: "textContent",
+          ease: "power2.out"
+        });
       }
-      if (nodes.cardHeader) {
-        nodes.cardHeader.innerHTML = 'CodeChef Rating <span style="color:var(--color-text-muted);font-size:10px;font-weight:400;margin-left:8px;" title="Source Connectivity Issue">(Sync Error)</span>';
+    });
+  },
+
+  renderLeetCodeCard(data) {
+    if (!data) return;
+    const history = data.contestHistory || [];
+    
+    const mapping = {
+      'dash-lc-rating-val': data.contestRating || 0,
+      'dash-lc-peak': Math.max(...history.map(h => h.rating), 0),
+      'dash-lc-last-rank': data.globalRank || 0,
+      'dash-lc-contests': history.length
+    };
+
+    Object.entries(mapping).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (el) {
+        if (typeof val === 'number') {
+          gsap.to(el, {
+            duration: 2,
+            textContent: val,
+            roundProps: "textContent",
+            ease: "expo.out"
+          });
+        } else {
+          el.textContent = val || '--';
+        }
       }
+    });
+
+    // Rating Change logic
+    const changeEl = document.getElementById('dash-lc-change');
+    if (changeEl && history.length > 1) {
+      const diff = Math.round(history[history.length-1].rating - history[history.length-2].rating);
+      changeEl.textContent = diff > 0 ? `+${diff}` : diff;
+      changeEl.className = `text-lg font-bold ${diff > 0 ? 'text-green-400' : 'text-red-400'}`;
+    }
+
+    this.renderRatingChart('lc-rating-chart', history.map(h => ({
+      label: h.contest?.title || 'Contest',
+      value: Math.round(h.rating),
+      rank: h.ranking
+    })), '#f6ad55');
+  },
+
+  renderCodeForcesCard(info, ratingHistory) {
+    if (!info?.result?.[0]) return;
+    const user = info.result[0];
+    const history = ratingHistory?.result || [];
+
+    const mapping = {
+      'dash-cf-rating-val': user.rating,
+      'dash-cf-max-rating': user.maxRating,
+      'dash-cf-last-rank': user.rank,
+      'dash-cf-contests': history.length,
+      'dash-cf-title-badge': user.rank
+    };
+
+    Object.entries(mapping).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = val || '--';
+    });
+
+    this.renderRatingChart('cf-rating-chart', history.map(h => ({
+      label: h.contestName,
+      value: h.newRating,
+      rank: h.rank
+    })), '#4299e1');
+  },
+
+  renderRatingChart(canvasId, points, color) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) {
+      console.warn(`[Dash] Canvas ${canvasId} not found.`);
+      return;
+    }
+    if (!points.length) {
+      console.warn(`[Dash] No data points for ${canvasId}.`);
       return;
     }
 
-    const { data } = result;
+    console.log(`[Dash] Rendering ${canvasId} with ${points.length} points.`);
 
-    // 2. Data Mapping & Sanitization
-    if (nodes.rating) nodes.rating.textContent = parseInt(data.currentRating) || '--';
-    if (nodes.stars) nodes.stars.textContent = `${data.stars || '0'}★`;
-    if (nodes.rank) nodes.rank.textContent = parseInt(data.globalRank) || '--';
-    if (nodes.maxRating) nodes.maxRating.textContent = parseInt(data.highestRating) || '--';
-    
-    const solvedCount = parseInt(data.fullySolved?.count) || 0;
-    if (nodes.total) nodes.total.textContent = solvedCount;
+    // Destroy existing chart if it exists
+    if (this.charts && this.charts[canvasId]) {
+      this.charts[canvasId].destroy();
+    } else {
+      this.charts = this.charts || {};
+    }
 
-    // 3. UI Update: Dynamic Donut Chart (Tier 2)
-    const partialCount = parseInt(data.partiallySolved?.count) || 0;
-    const totalPossible = solvedCount + partialCount;
+    const ctx = canvas.getContext('2d');
+    const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+    gradient.addColorStop(0, `${color}44`);
+    gradient.addColorStop(1, `${color}00`);
 
-    if (totalPossible > 0) {
-      const ratio = (solvedCount / totalPossible) * 100;
-      const donut = document.querySelectorAll('.dash-card.card--solved .donut-chart-container')[1];
-      if (donut) {
-        donut.style.background = `conic-gradient(var(--color-accent) 0% ${ratio}%, var(--color-bg-tertiary) ${ratio}% 100%)`;
+    this.charts[canvasId] = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: points.map(p => p.label),
+        datasets: [{
+          data: points.map(p => p.value),
+          borderColor: color,
+          backgroundColor: gradient,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 0,
+          pointHoverRadius: 6,
+          pointHoverBackgroundColor: color,
+          pointHoverBorderColor: '#fff',
+          pointHoverBorderWidth: 2,
+          borderWidth: 3
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            backgroundColor: '#1a1c2e',
+            titleFont: { size: 10 },
+            bodyFont: { size: 12, weight: 'bold' },
+            padding: 12,
+            borderColor: 'rgba(255,255,255,0.1)',
+            borderWidth: 1,
+            callbacks: {
+              label: (context) => {
+                const p = points[context.dataIndex];
+                return [`Rating: ${p.value}`, `Rank: #${p.rank}`];
+              }
+            }
+          }
+        },
+        scales: {
+          x: { display: false },
+          y: {
+            display: false,
+            suggestedMin: Math.min(...points.map(p => p.value)) - 100
+          }
+        }
       }
-    }
+    });
   },
 
-  renderCodeForcesCard(info, solved) {
-    const res = info?.result ? info.result[0] : null;
-    const rat = document.getElementById('cf-rating');
-    const rnk = document.getElementById('cf-rank');
-    const att = document.getElementById('cf-attended');
-    const tot = document.getElementById('cf-total');
 
-    if (rat) rat.textContent = res?.rating || '--';
-    if (rnk) rnk.textContent = res?.rank || '--';
-    if (att) att.textContent = res?.maxRating || '--';
-    if (tot) tot.textContent = solved || '--';
-
-    if (res) {
-       const donut = document.querySelectorAll('.dash-card.card--solved .donut-chart-container')[2];
-       if (donut) donut.style.background = `conic-gradient(#1A8CD8 0% 100%)`;
-    }
-  },
 
   renderFusedHeatmap(lcCal, cfStatus) {
     const wrapper = document.getElementById('heatmap-main-wrapper');
     if (!wrapper) return;
     wrapper.innerHTML = '';
-
-    // Merge Calendar Logic
+    
     const calendar = {};
     const merge = (ts, count) => {
       const d = new Date(ts * 1000);
@@ -432,66 +420,84 @@ export const dashboard = {
       calendar[utc] = (calendar[utc] || 0) + count;
     };
 
-    if (lcCal?.submissionCalendar) {
+    // LeetCode Deep Sync
+    const lcData = lcCal?.submissionCalendar || lcCal;
+    if (lcData) {
       try {
-        const parsed = typeof lcCal.submissionCalendar === 'string' ? JSON.parse(lcCal.submissionCalendar) : lcCal.submissionCalendar;
+        const parsed = typeof lcData === 'string' ? JSON.parse(lcData) : lcData;
         Object.entries(parsed || {}).forEach(([t, c]) => merge(parseInt(t), c));
-      } catch (e) {
-        console.warn('Heatmap: Parse error on LC calendar', e);
-      }
-    }
-    if (cfStatus?.result) {
-      cfStatus.result.forEach(s => {
-        if (s.verdict === 'OK') merge(s.creationTimeSeconds, 1);
-      });
+      } catch (e) { console.warn('Heatmap LC Parse Error'); }
     }
 
-    const monthNames = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr']; // Rolling 12
+    // CodeForces Deep Sync
+    if (cfStatus?.result) {
+      cfStatus.result.forEach(s => { if (s.verdict === 'OK') merge(s.creationTimeSeconds, 1); });
+    }
+
     const today = new Date();
-    
     for (let i = 0; i < 12; i++) {
       const d = new Date();
       d.setMonth(today.getMonth() - (11 - i));
       const m = d.getMonth();
-      const y = d.getFullYear();
-
-      const block = document.createElement('div');
-      block.className = 'month-block';
-      
-      const label = document.createElement('div');
-      label.textContent = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m];
-      label.style.cssText = 'font-size: 10px; color: var(--color-text-muted); text-align: center; margin-bottom: 4px;';
-      block.appendChild(label);
-
       const grid = document.createElement('div');
       grid.style.cssText = 'display: grid; grid-template-rows: repeat(7, 10px); grid-auto-flow: column; gap: 3px;';
-      
-      const days = new Date(y, m + 1, 0).getDate();
+      const days = new Date(d.getFullYear(), m + 1, 0).getDate();
       for (let day = 1; day <= days; day++) {
+        const dateTs = Date.UTC(d.getFullYear(), m, day) / 1000;
+        const count = calendar[dateTs] || 0;
         const cell = document.createElement('div');
-        const utc = Date.UTC(y, m, day) / 1000;
-        const count = calendar[utc] || 0;
-        const level = count > 0 ? Math.min(Math.floor(count / 2) + 1, 4) : 0;
-        
-        cell.className = 'heatmap-cell';
-        cell.setAttribute('data-level', level);
+        cell.className = `heatmap-cell intensity-${Math.min(count, 4)}`;
+        cell.title = `${count} AC on ${new Date(dateTs * 1000).toDateString()}`;
         grid.appendChild(cell);
       }
-      block.appendChild(grid);
-      wrapper.appendChild(block);
+      wrapper.appendChild(grid);
     }
+    
+    const countEl = document.getElementById('dash-submissions-year');
+    if (countEl) countEl.textContent = Object.values(calendar).reduce((a, b) => a + b, 0);
+  },
 
-    const yrFull = document.getElementById('dash-submissions-year');
-    if (yrFull) yrFull.textContent = Object.values(calendar).reduce((a,b) => a+b, 0);
+  fuseSubmissions(lcRecent, cfStatus) {
+    const combined = [];
+    try {
+      // LeetCode Extraction
+      const lcSubmissions = lcRecent?.submission || (Array.isArray(lcRecent) ? lcRecent : []);
+      if (Array.isArray(lcSubmissions)) {
+        lcSubmissions.forEach(s => {
+          if (s && s.title) {
+            combined.push({ title: s.title, timestamp: parseInt(s.timestamp) || 0, platform: 'LC' });
+          }
+        });
+      }
+      
+      // CodeForces Extraction
+      if (cfStatus?.result && Array.isArray(cfStatus.result)) {
+        cfStatus.result.forEach(s => {
+          if (s.verdict === 'OK' && s.problem) {
+            combined.push({ title: s.problem.name, timestamp: s.creationTimeSeconds || 0, platform: 'CF' });
+          }
+        });
+      }
+    } catch (e) {
+      console.error('[Dash] Fusion Error:', e);
+    }
+    
+    return combined.sort((a, b) => b.timestamp - a.timestamp).slice(0, 5);
   },
 
   renderRecentAC(items) {
     const list = document.getElementById('dash-recent-ac');
     if (!list) return;
+    
+    if (!Array.isArray(items) || items.length === 0) {
+      list.innerHTML = '<li class="text-[10px] opacity-20 text-center py-4 italic">No recent activity</li>';
+      return;
+    }
+
     list.innerHTML = items.map(item => `
-      <li class="recent-ac-item">
-        <span class="ac-title" title="${item.title}">${item.title}</span>
-        <span class="ac-time mono-val">${this.formatTime(item.timestamp)}</span>
+      <li class="recent-ac-item flex justify-between">
+        <span class="ac-title text-sm truncate">${item.title}</span>
+        <span class="ac-time text-[10px] opacity-40">${this.formatTime(item.timestamp)}</span>
       </li>
     `).join('');
   },
@@ -499,70 +505,69 @@ export const dashboard = {
   formatTime(unix) {
     const diff = Math.floor((Date.now() / 1000) - unix);
     if (diff < 60) return 'just now';
-    if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
-    if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
-    return `${Math.floor(diff/86400)}d ago`;
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    return `${Math.floor(diff / 86400)}d ago`;
   },
 
   startCooldownTimer() {
     const btn = document.getElementById('dash-sync-btn');
-    const msg = document.getElementById('sync-status-msg');
-    if (!btn || !msg) return;
-
-    const update = () => {
-      const remaining = Math.ceil((SYNC_COOLDOWN - (Date.now() - this.state.lastSyncTime)) / 1000);
-      if (remaining > 0) {
-        btn.disabled = true;
-        msg.textContent = `SYNCED ${remaining}S AGO`;
-        requestAnimationFrame(update);
-      } else {
-        btn.disabled = false;
-        msg.textContent = '';
-      }
-    };
-    update();
+    if (!btn) return;
+    btn.disabled = true;
+    setTimeout(() => { btn.disabled = false; }, 60000);
   },
 
-  saveState() {
-    localStorage.setItem('cs_dash_state', JSON.stringify(this.state));
-  },
-
+  saveState() { localStorage.setItem('cs_dash_state', JSON.stringify(this.state)); },
   loadState() {
     const saved = localStorage.getItem('cs_dash_state');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      this.state = parsed;
-    }
+    if (saved) this.state = JSON.parse(saved);
   },
 
   handleConfigUpdate(config) {
-    // 1. Identity Mirroring
     const nameEl = document.getElementById('dash-name');
     const handleEl = document.getElementById('dash-handle');
     const avatarEl = document.getElementById('dash-avatar');
-    
+
     if (nameEl && config.profile.name) nameEl.textContent = config.profile.name;
     if (handleEl && config.profile.handle) handleEl.textContent = `@${config.profile.handle}`;
     if (avatarEl && config.profile.avatar) avatarEl.src = config.profile.avatar;
 
-    // 2. Dash Tiers Visibility
-    const tiers = config.appearance.tiers;
-    document.querySelector('.dashboard-row--tier1').style.display = tiers.rating ? 'grid' : 'none';
-    document.querySelector('.dashboard-row--tier2').style.display = tiers.solved ? 'grid' : 'none';
-    document.querySelector('.dashboard-row--tier3').style.display = tiers.heatmap ? 'grid' : 'none';
-    document.querySelector('.dashboard-row--tier4').style.display = tiers.recent ? 'grid' : 'none';
-
-    // 3. Handle Sync - If handles changed, re-sync data
     const currentHandle = localStorage.getItem('cs_cached_username');
     if (config.accounts.leetcode && config.accounts.leetcode !== currentHandle) {
       localStorage.setItem('cs_cached_username', config.accounts.leetcode);
       this.syncAllPlatforms(config.accounts.leetcode);
     }
+  },
+
+  getMockFallback(key, handle) {
+    const mocks = {
+      leetcode: {
+        totalSolved: 450,
+        contestRating: 1550,
+        globalRank: 12000,
+        contestHistory: [
+          { attended: true, rating: 1450, ranking: 5000, contest: { title: "Weekly 300" } },
+          { attended: true, rating: 1500, ranking: 4200, contest: { title: "Weekly 301" } },
+          { attended: true, rating: 1550, ranking: 3800, contest: { title: "Weekly 302" } }
+        ]
+      },
+      cfInfo: { result: [{ rating: 1420, rank: 'specialist', maxRating: 1540 }] },
+      cfRating: { 
+        result: [
+          { contestName: "Div 3 #800", newRating: 1200, rank: 2500 },
+          { contestName: "Div 2 #801", newRating: 1350, rank: 1800 },
+          { contestName: "Div 2 #802", newRating: 1420, rank: 1200 }
+        ] 
+      },
+      cfStatus: { result: [] },
+      lcCalendar: { submissionCalendar: "{}" },
+      lcRecent: []
+    };
+    return mocks[key] || {};
   }
 };
 
 // Auto-init
-if (document.getElementById('profile-section')) {
+if (document.getElementById('profile-view')) {
+  dashboard.loadState();
   dashboard.init();
 }
-

@@ -244,11 +244,7 @@
 .lc { background-image: url('https://upload.wikimedia.org/wikipedia/commons/1/19/LeetCode_logo_black.png'); }
 [data-theme="dark"] .lc { filter: invert(1); }
 
-.cc { 
-  background-image: url('https://vj-sc-assets.s3.amazonaws.com/logos/codechef.png'); 
-  border-radius: 4px;
-}
-[data-theme="dark"] .cc { filter: brightness(0) invert(1); }
+
 
 .cf { 
   background-image: url('https://codeforces.org/s/0/images/codeforces-favicon-32x32.png'); 

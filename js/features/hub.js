@@ -1,10 +1,14 @@
-import { db, auth } from '../core/firebase.js';
-import { doc, getDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js';
+import { API_BASE } from '../core/config.js';
 
 const hubTabs = document.querySelectorAll('.hub-tab');
 const hubPanes = document.querySelectorAll('.hub-pane');
 const accountForm = document.getElementById('settings-account-form');
 const leetcodeInput = document.getElementById('settings-leetcode');
+
+/**
+ * Get current user from sessionStorage
+ */
+const getCurrentUser = () => JSON.parse(sessionStorage.getItem('cs_user') || 'null');
 
 // 1. Hub Tab Logic (Simplified and Robust)
 hubTabs.forEach(tab => {
@@ -18,18 +22,13 @@ hubTabs.forEach(tab => {
     // 2. Update Panes
     hubPanes.forEach(pane => {
       if (pane.id === targetId) {
-        // Show target
         pane.style.display = 'block';
-        // Force reflow
         void pane.offsetWidth;
         pane.classList.add('active');
         pane.style.opacity = '1';
       } else {
-        // Hide others
         pane.classList.remove('active');
         pane.style.opacity = '0';
-        // Note: We keep display block for others during transition if desired,
-        // but for simplicity, we'll just hide them immediately if they aren't active.
         setTimeout(() => {
           if (!pane.classList.contains('active')) {
             pane.style.display = 'none';
@@ -38,12 +37,12 @@ hubTabs.forEach(tab => {
       }
     });
 
-    // 3. Force LeetCode refresh when entering Progress View
-    if (targetId === 'progress-view' && auth.currentUser) {
-      if (window.CodeSphere?.fetchLeetCodeStats) {
-        // Use user handle from settings or profile if available
-        const handle = leetcodeInput?.value.trim() || '';
-        window.CodeSphere.fetchLeetCodeStats(handle || null);
+    // 3. Force LeetCode refresh
+    const user = getCurrentUser();
+    if (targetId === 'progress-view' && user) {
+      if (window.CodeSphere?.dashboard?.syncAllPlatforms) {
+        const handle = user.handles?.leetcode || leetcodeInput?.value.trim() || '';
+        window.CodeSphere.dashboard.syncAllPlatforms(handle || null);
       }
     }
   });
@@ -52,7 +51,8 @@ hubTabs.forEach(tab => {
 // 2. Route Activation
 document.addEventListener('routechange', async (e) => {
   if (e.detail.route === 'home' || e.detail.route === 'settings') {
-    if (!auth.currentUser) return;
+    const user = getCurrentUser();
+    if (!user) return;
 
     // Navigate to respective tab
     if (e.detail.route === 'settings') {
@@ -61,24 +61,20 @@ document.addEventListener('routechange', async (e) => {
       document.querySelector('[data-target="progress-view"]')?.click();
     }
 
-    // Load initial settings data
-    try {
-      const docRef = doc(db, 'users', auth.currentUser.uid);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists() && leetcodeInput) {
-        leetcodeInput.value = docSnap.data().leetcodeUsername || '';
-      }
-    } catch (err) {
-      console.error('Failed to load settings data into hub:', err);
+    // Load initial settings data from the user object
+    if (leetcodeInput) {
+      leetcodeInput.value = user.handles?.leetcode || '';
     }
   }
 });
 
-// 3. Settings Form Submission
+// 3. Settings Form Submission (Updated for Backend)
 accountForm?.addEventListener('submit', async (e) => {
   e.preventDefault();
   
-  if (!auth.currentUser) return;
+  const user = getCurrentUser();
+  if (!user) return;
+
   const newHandle = leetcodeInput?.value.trim() || '';
   const saveBtn = document.getElementById('settings-save-btn');
   const errorEl = document.getElementById('settings-error');
@@ -93,15 +89,30 @@ accountForm?.addEventListener('submit', async (e) => {
   }
 
   try {
-    const userRef = doc(db, 'users', auth.currentUser.uid);
-    await updateDoc(userRef, { leetcodeUsername: newHandle });
-    if (successEl) successEl.hidden = false;
-    
-    // Immediate API Sync requirement
-    if (window.CodeSphere?.api?.fetchLeetCodeStats) {
-      window.CodeSphere.api.fetchLeetCodeStats(newHandle);
-    } else if (window.CodeSphere?.fetchLeetCodeStats) {
-      window.CodeSphere.fetchLeetCodeStats(newHandle);
+    // Call the same backend sync logic from config.js
+    const response = await fetch(`${API_BASE}/user/handles`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        userId: user._id, 
+        handles: { ...user.handles, leetcode: newHandle } 
+      })
+    });
+
+    const result = await response.json();
+    if (result.success) {
+      // Update local session
+      user.handles = result.data.handles;
+      sessionStorage.setItem('cs_user', JSON.stringify(user));
+      
+      if (successEl) successEl.hidden = false;
+      
+      // Immediate API Sync
+      if (window.CodeSphere?.dashboard?.syncAllPlatforms) {
+        window.CodeSphere.dashboard.syncAllPlatforms(newHandle);
+      }
+    } else {
+      throw new Error(result.message);
     }
   } catch (err) {
     if (errorEl) {
@@ -115,3 +126,4 @@ accountForm?.addEventListener('submit', async (e) => {
     }
   }
 });
+
