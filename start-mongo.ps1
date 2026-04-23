@@ -1,9 +1,9 @@
 # start-mongo.ps1
 # Launches the portable MongoDB instance extracted from the MSI
 
-$MONGO_EXE = "D:\rfp\CodeSphere\server\mongodb\MongoDB\Server\8.2\bin\mongod.exe"
-$DB_PATH = "D:\rfp\CodeSphere\server\data\db"
-$LOG_PATH = "D:\rfp\CodeSphere\server\data\log\mongo.log"
+$MONGO_EXE = "$PSScriptRoot\server\mongodb\MongoDB\Server\8.2\bin\mongod.exe"
+$DB_PATH = "$PSScriptRoot\server\data\db"
+$LOG_PATH = "$PSScriptRoot\server\data\log\mongo.log"
 
 Write-Host "Starting Portable MongoDB..." -ForegroundColor Green
 Write-Host "DB Path: $DB_PATH"

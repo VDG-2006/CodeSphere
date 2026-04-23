@@ -13,7 +13,7 @@ const VideoSchema = new mongoose.Schema({
   views: { type: Number, default: 0 },
   likes: { type: Number, default: 0 },
   creator: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  duration: { type: String, default: '0:00' }
+  duration: { type: Number, default: 0 } // Duration in seconds
 }, { timestamps: true });
 
 module.exports = mongoose.model('Video', VideoSchema);

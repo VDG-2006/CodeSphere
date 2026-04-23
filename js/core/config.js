@@ -1,27 +1,13 @@
 /**
  * js/core/config.js
- * CodeSphere Configuration, Secrets, and State Manager
+ * CodeSphere Configuration and State Manager
+ * Secrets removed - handled by backend proxy.
  */
 
-// 1. Firebase Credentials (RESTORED)
-export const firebaseConfig = {
-  apiKey: 'AIzaSyCmJl9Y_nJ3NRoK5Ha0XH3KUoBqnaboIbs',
-  authDomain: 'codesphere-80ae8.firebaseapp.com',
-  projectId: 'codesphere-80ae8',
-  storageBucket: 'codesphere-80ae8.firebasestorage.app',
-  messagingSenderId: '185869657422',
-  appId: '1:185869657422:web:f55605a7675a5ae8846a1f',
-  measurementId: 'G-X3FTD9SMXG',
-};
-
-// 2. AI Mentor Key (RESTORED)
-export const GEMINI_API_KEY = 'YOUR_KEY_HERE';
-
-// 3. Backend API Configuration
+// 1. Backend API Configuration
 export const API_BASE = '/api';
 
-
-// 4. Reactive Config Manager
+// 2. Reactive Config Manager
 export const ConfigManager = {
   keys: {
     accounts: 'cs_accounts',
@@ -72,30 +58,13 @@ export const ConfigManager = {
 
   trackDirty(formState) {
     function stringifyWithSortedKeys(obj) {
-      // Helper function to recursively sort the keys
       function sortKeys(item) {
-        // Return primitives and null as-is
-        if (item === null || typeof item !== 'object') {
-          return item;
-        }
-
-        // If it's an array, recursively map over its items
-        if (Array.isArray(item)) {
-          return item.map(sortKeys);
-        }
-
-        // If it's a plain object, sort its keys and recreate the object
+        if (item === null || typeof item !== 'object') return item;
+        if (Array.isArray(item)) return item.map(sortKeys);
         const sortedObj = {};
-        const sortedKeys = Object.keys(item).sort();
-
-        for (const key of sortedKeys) {
-          sortedObj[key] = sortKeys(item[key]);
-        }
-
+        Object.keys(item).sort().forEach(key => { sortedObj[key] = sortKeys(item[key]); });
         return sortedObj;
       }
-
-      // Sort the object, then stringify the deterministic result
       return JSON.stringify(sortKeys(obj));
     }
     return stringifyWithSortedKeys(formState) !== stringifyWithSortedKeys(this.state);
@@ -178,18 +147,19 @@ export async function saveSettings() {
     sync: { frequency: 'manual', cooldown: document.getElementById('set-cooldown-enabled')?.checked ?? true }
   };
 
-  // 1. Master Persistence
   localStorage.setItem('cs_master_config', JSON.stringify(masterConfig));
   localStorage.setItem('cs_cached_username', accounts.leetcode);
 
-  // 2. BACKEND PERSISTENCE
   const user = JSON.parse(sessionStorage.getItem('cs_user') || '{}');
   if (user._id) {
     try {
       await fetch(`${API_BASE}/user/handles`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user._id, handles: accounts })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionStorage.getItem('cs_token')}`
+        },
+        body: JSON.stringify({ handles: accounts }) // userId removed - handled by JWT on backend
       });
       console.log('Backend Synced');
     } catch (e) {
@@ -197,10 +167,7 @@ export async function saveSettings() {
     }
   }
 
-  // 3. Update Internal State
   ConfigManager.state = masterConfig;
-
-  // 4. Dispatch Reactive Event
   window.dispatchEvent(new CustomEvent('cs-settings-update', {
     detail: { config: ConfigManager.state }
   }));
@@ -208,17 +175,14 @@ export async function saveSettings() {
   ConfigManager.showToast('Settings Saved & Synced');
 }
 
-
 /**
- * Hydration Engine: Master Recovery and Init
+ * Hydration Engine
  */
 document.addEventListener('DOMContentLoaded', () => {
   const master = localStorage.getItem('cs_master_config');
   if (master) {
     try {
       const config = JSON.parse(master);
-
-      // A. Populate Inputs
       const mapping = {
         'set-lc-handle': config.accounts?.leetcode,
         'set-cf-handle': config.accounts?.codeforces,
@@ -234,7 +198,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (el && val !== undefined) el.value = val;
       });
 
-      // B. Populate Checkboxes
       const checks = {
         'set-high-contrast': config.appearance?.contrast,
         'tier-show-rating': config.appearance?.tiers?.rating,
@@ -249,14 +212,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (el && val !== undefined) el.checked = val;
       });
 
-      // C. Trigger Dashboard Sync
       ConfigManager.state = config;
       import('../features/dashboard.js').then(m => {
         if (m.dashboard && config.accounts?.leetcode) {
           m.dashboard.syncAllPlatforms(config.accounts.leetcode);
         }
       });
-
     } catch (e) { console.error('Hydration failed', e); }
   }
 });

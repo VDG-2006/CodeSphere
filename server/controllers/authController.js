@@ -7,7 +7,7 @@ const generateToken = (id) => {
 
 exports.register = async (req, res, next) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password, handles } = req.body;
     console.log(`[Auth] Register attempt: ${username} (${email})`);
     
     const userExists = await User.findOne({ $or: [{ username }, { email }] });
@@ -17,7 +17,7 @@ exports.register = async (req, res, next) => {
       return res.status(400).json({ success: false, message: `${field} already taken` });
     }
 
-    const user = await User.create({ username, email, password });
+    const user = await User.create({ username, email, password, handles });
     console.log(`[Auth] User created: ${user._id}`);
 
     res.status(201).json({

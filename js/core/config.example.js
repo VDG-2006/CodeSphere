@@ -1,19 +1,11 @@
 /**
- * config.example.js — Safe template to commit to Git.
- *
+ * config.example.js — Frontend Configuration Template
+ * 
  * HOW TO USE:
- *   1. Copy this file and rename the copy to config.js
- *   2. Replace each empty string with your real Firebase credentials
- *      (Firebase Console → Project Settings → Your Apps → Config)
- *   3. Never commit config.js — it is listed in .gitignore
+ *   1. Copy this file to config.js
+ *   2. Your real API keys are now handled by the backend proxy.
+ *   3. Ensure API_BASE points to your server (default: /api).
  */
 
-export const firebaseConfig = {
-  apiKey:            '',
-  authDomain:        '',
-  projectId:         '',
-  storageBucket:     '',
-  messagingSenderId: '',
-  appId:             '',
-  measurementId:     '',
-};
+export const API_BASE = '/api';
+export const GEMINI_API_BASE_URL = '/api/mentor/chat';

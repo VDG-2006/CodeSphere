@@ -46,6 +46,11 @@ exports.getVideoById = async (req, res, next) => {
 // Seed Mock Data
 exports.seedVideos = async (req, res, next) => {
   try {
+    const existingCount = await Video.countDocuments();
+    if (existingCount > 0) {
+      return res.json({ success: true, message: "Videos already exist. Skipping seed.", count: existingCount });
+    }
+
     const mockVideos = [
       {
         title: "Mastering Java Streams in 10 Minutes",
@@ -55,7 +60,7 @@ exports.seedVideos = async (req, res, next) => {
         category: "Java",
         views: 1205,
         likes: 450,
-        duration: "10:24"
+        duration: 624 // 10:24
       },
       {
         title: "Advanced DSA: Graph Traversal Algorithms",
@@ -65,7 +70,7 @@ exports.seedVideos = async (req, res, next) => {
         category: "DSA",
         views: 890,
         likes: 310,
-        duration: "15:45"
+        duration: 945 // 15:45
       },
       {
         title: "React vs Vue in 2026: The Ultimate Comparison",
@@ -75,11 +80,10 @@ exports.seedVideos = async (req, res, next) => {
         category: "WebDev",
         views: 3400,
         likes: 1200,
-        duration: "08:12"
+        duration: 492 // 08:12
       }
     ];
 
-    await Video.deleteMany({});
     const created = await Video.insertMany(mockVideos);
     res.json({ success: true, message: "Mock videos seeded", count: created.length });
   } catch (error) {

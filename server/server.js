@@ -17,6 +17,7 @@ const { getVideos, getTrending, getVideoById, seedVideos } = require('./controll
 
 // Middlewares
 const { validateStatsRequest } = require('./middlewares/validateStatsRequest');
+const authMiddleware = require('./middlewares/authMiddleware');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -34,7 +35,7 @@ app.use('/css', express.static(path.join(__dirname, '..', 'css')));
 app.use('/assets', express.static(path.join(__dirname, '..', 'assets')));
 
 // External Video Content Route
-const externalPath = "D:/Sigma Web Dev/Sigma Web Development Course - Web Development Tutorials in Hindi 🗿";
+const externalPath = path.join(__dirname, '..', 'content');
 app.use('/api/content', express.static(externalPath, {
   setHeaders: (res, path) => {
     if (path.endsWith('.mp4')) {
@@ -81,16 +82,17 @@ app.post('/api/auth/login', login);
 // Video Engine
 app.get('/api/videos', getVideos);
 app.get('/api/videos/trending', getTrending);
-app.get('/api/videos/seed', seedVideos); // Dev only helper
+app.get('/api/videos/seed', authMiddleware, seedVideos); // Protected dev helper
 app.get('/api/videos/:id', getVideoById);
 
 // Stats Engine (Mapping Pattern + 60s TTL)
 app.get('/api/stats/:platform/:handle', validateStatsRequest, getPlatformStats);
 
 // Atomic Purge for Stats Handles
-app.post('/api/user/handles', async (req, res, next) => {
+app.post('/api/user/handles', authMiddleware, async (req, res, next) => {
   try {
-    const { userId, handles } = req.body;
+    const userId = req.user.id;
+    const { handles } = req.body;
     
     // ATOMIC PURGE: Immediately delete cache entries for any handle that is being updated
     if (handles && typeof handles === 'object') {
@@ -108,15 +110,37 @@ app.post('/api/user/handles', async (req, res, next) => {
   }
 });
 
-// 4. ERROR HANDLING
-app.use((err, req, res, next) => {
-  console.error('[Error]', err.stack);
-  res.status(500).json({ success: false, message: err.message || "Internal Server Error" });
+// AI Mentor Proxy (Hides API Keys)
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+app.post('/api/mentor/chat', authMiddleware, async (req, res, next) => {
+  try {
+    const { prompt } = req.body;
+    if (!prompt) return res.status(400).json({ success: false, message: 'Prompt is required' });
+
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ 
+      model: "gemini-1.5-flash",
+      systemInstruction: "You are a senior B.Tech Computer Science & Engineering project mentor. Guide students through technical challenges, code reviews, DSA, and career questions. Be concise and actionable."
+    });
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    res.json({ success: true, reply: response.text() });
+  } catch (error) {
+    console.error('[Mentor API] Error:', error.message);
+    res.status(500).json({ success: false, message: 'AI Mentor is currently offline' });
+  }
 });
 
 // SPA Routing: Serve index.html for all non-API routes
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'index.html'));
+});
+
+// 4. ERROR HANDLING
+app.use((err, req, res, next) => {
+  console.error('[Error]', err.stack);
+  res.status(500).json({ success: false, message: err.message || "Internal Server Error" });
 });
 
 app.listen(PORT, () => console.log(`[Server] CodeSphere active on port ${PORT}`));

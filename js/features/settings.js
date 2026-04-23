@@ -4,18 +4,7 @@
  */
 
 import { ConfigManager } from '../core/config.js';
-
-const escapeHtml = (str = '') => String(str).replace(/[&<>"']/g, match =>
-  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[match]
-);
-
-const debounce = (func, delay = 300) => {
-  let timeoutId;
-  return (...args) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => func(...args), delay);
-  };
-};
+import { escapeHtml, debounce } from '../core/utils.js';
 
 export const settings = {
   modal: null,
@@ -91,10 +80,12 @@ export const settings = {
 
   open() {
     this.syncFormWithConfig();
-    this.modal.classList.add('active');
-    document.body.style.overflow = 'hidden';
-    this.updatePreview();
-    this.trapFocus();
+    if (this.modal) {
+      this.modal.classList.add('active');
+      document.body.style.overflow = 'hidden';
+      this.updatePreview();
+      this.trapFocus();
+    }
   },
 
   close() {
@@ -125,7 +116,6 @@ export const settings = {
     const appearance = ConfigManager.get('appearance');
     const sync = ConfigManager.get('sync');
 
-    // Bind to DOM
     if (document.getElementById('set-lc-handle')) document.getElementById('set-lc-handle').value = accounts.leetcode;
     if (document.getElementById('set-cf-handle')) document.getElementById('set-cf-handle').value = accounts.codeforces;
 
@@ -177,13 +167,10 @@ export const settings = {
   async save() {
     this.updateFormState();
 
-    // 1. Direct Save via Master Controller
     const { saveSettings } = await import('../core/config.js');
     await saveSettings();
 
     this.updatePreview();
-
-    // 2. Apply Visual Theme & Accent
     this.applyTheme(this.formState.appearance.theme);
     this.applyAccent(this.formState.appearance.accent);
   },
@@ -192,7 +179,6 @@ export const settings = {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('cs_theme', theme);
 
-    // Sync header toggle if it exists
     const headerToggle = document.getElementById('theme-toggle');
     if (headerToggle) headerToggle.checked = (theme === 'dark');
   },
@@ -212,13 +198,17 @@ export const settings = {
     const statusEl = document.getElementById(statusId);
 
     if (!handle) {
-      statusEl.textContent = 'Not Set';
-      statusEl.style.color = '#ff6b6b';
+      if (statusEl) {
+        statusEl.textContent = 'Not Set';
+        statusEl.style.color = '#ff6b6b';
+      }
       return;
     }
 
-    statusEl.textContent = 'Verifying...';
-    statusEl.style.color = '#ffd43b';
+    if (statusEl) {
+      statusEl.textContent = 'Verifying...';
+      statusEl.style.color = '#ffd43b';
+    }
 
     const endpoints = {
       leetcode: `https://alfa-leetcode-api.onrender.com/${handle}/profile`,
@@ -228,24 +218,19 @@ export const settings = {
     try {
       const resp = await fetch(endpoints[platform], { mode: 'cors' });
       if (resp.ok) {
-        statusEl.textContent = 'Connected';
-        statusEl.style.color = '#51cf66';
+        if (statusEl) {
+          statusEl.textContent = 'Connected';
+          statusEl.style.color = '#51cf66';
+        }
       } else {
         let errorMsg = `Error (${resp.status})`;
         if (resp.status === 404) errorMsg = 'Invalid Handle';
-        if (resp.status === 402) errorMsg = 'API Limit Reached';
         throw new Error(errorMsg);
       }
     } catch (e) {
-      console.warn(`Settings: Verification failed for ${platform}`, e);
-      statusEl.textContent = (e.message && e.message !== '[object Object]') ? e.message : 'Verification Failed';
-      statusEl.style.color = '#ff6b6b';
-
-      // Hint about CORS if it's a generic ERR_FAILED
-      if (e.name === 'TypeError' && !window.navigator.onLine) {
-        statusEl.textContent = 'Offline';
-      } else if (e.name === 'TypeError') {
-        statusEl.textContent = 'Blocked/CORS';
+      if (statusEl) {
+        statusEl.textContent = (e.message && e.message !== '[object Object]') ? e.message : 'Verification Failed';
+        statusEl.style.color = '#ff6b6b';
       }
     }
   },
@@ -263,8 +248,10 @@ export const settings = {
       <p style="margin: 4px 0 0; font-size: 13px; color: var(--color-text-muted);">Preview Mode</p>
     `;
 
-    document.getElementById('preview-avatar').src = escapeHtml(avatar);
-    document.getElementById('preview-name').textContent = name;
+    const avatarEl = document.getElementById('preview-avatar');
+    const nameEl = document.getElementById('preview-name');
+    if (avatarEl) avatarEl.src = escapeHtml(avatar);
+    if (nameEl) nameEl.textContent = name;
   }, 300),
 
   async handleImport(e) {
@@ -291,11 +278,12 @@ export const settings = {
   },
 
   trapFocus() {
-    const focusable = this.modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    const focusable = this.modal?.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    if (!focusable || focusable.length === 0) return;
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
 
-    this.modal.addEventListener('keydown', (e) => {
+    this.modal?.addEventListener('keydown', (e) => {
       if (e.key !== 'Tab') return;
       if (e.shiftKey) {
         if (document.activeElement === first) {
@@ -313,4 +301,4 @@ export const settings = {
   }
 };
 
-settings.init();
+// settings.init() removed for manual boot coordination

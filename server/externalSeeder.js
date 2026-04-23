@@ -4,14 +4,14 @@ const mongoose = require('mongoose');
 const Video = require('./models/Video');
 require('dotenv').config();
 
-const COURSE_PATH = "D:/Sigma Web Dev/Sigma Web Development Course - Web Development Tutorials in Hindi 🗿";
+const COURSE_PATH = path.join(__dirname, '..', 'content');
 const CATEGORY = "WebDev";
 const THUMBNAIL = "https://images.unsplash.com/photo-1498050108023-c5249f4df085";
 
 async function seedExternalVideos() {
   try {
     console.log('[Seeder] Connecting to MongoDB...');
-    await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/codesphere-v2-dev');
+    await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/codesphere-dev');
     console.log('[Seeder] Connected.');
 
     const files = fs.readdirSync(COURSE_PATH);

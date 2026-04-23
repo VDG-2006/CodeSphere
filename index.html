@@ -5,62 +5,78 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CodeSphere | Professional Education for Developers</title>
   
-  <!-- Tailwind CSS CLI Utility (Play CDN for this environment) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
-          colors: {
-            midnight: '#0B1123',
-            'midnight-light': '#151C33',
-            accent: '#00F2FE',
-            'accent-blue': '#007AFF',
-          },
-          backdropBlur: {
-            'xl': '12px',
-          }
+          colors: { midnight: '#0B1123', 'midnight-light': '#151C33', accent: '#00F2FE', 'accent-blue': '#007AFF' },
+          backdropBlur: { 'xl': '12px' },
+          safelist: [
+            { pattern: /bg-(green|orange|red|blue|purple|cyan)-500/ },
+            { pattern: /text-(green|orange|red|blue|purple|cyan)-400/ },
+            { pattern: /bg-accent/ },
+            { pattern: /intensity-[0-4]/ }
+          ]
         }
       }
     }
   </script>
 
-  <!-- Google Fonts: Inter & JetBrains Mono -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
-
-  <!-- GSAP & Plugins -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/TextPlugin.min.js"></script>
 
   <link href="css/landing-v2.css" rel="stylesheet" />
   <link href="css/auth-v2.css" rel="stylesheet" />
-  <script src="js/auth-gsap-engine.js" defer></script>
   <style>
     body { font-family: 'Inter', sans-serif; background: #0B1123; color: white; overflow-x: hidden; }
     .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
     
-    /* V2 Visibility Restoration */
-    #app-shell, nav, aside, #getting-started-view { opacity: 1 !important; visibility: visible !important; }
+    /* V2 Visibility Management */
+    .view-container { 
+      display: none; 
+      opacity: 0; 
+      transition: opacity 0.4s ease; 
+    }
+    .view-container.active { 
+      display: flex; 
+      opacity: 1; 
+      flex-direction: column; 
+      width: 100%; 
+    }
+    /* Special handling for Auth Views to ensure they are centered and above everything */
+    #login-view.active, #signup-view.active {
+      display: flex !important;
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      background: rgba(11, 17, 35, 0.8);
+      backdrop-filter: blur(8px);
+    }
     
-    body.is-logged-in #getting-started-view { display: none !important; }
-    body:not(.is-logged-in) #app-shell, 
-    body:not(.is-logged-in) nav, 
-    body:not(.is-logged-in) aside { display: none !important; }
+    body.no-scroll { 
+      overflow: hidden; 
+      height: 100vh; 
+      position: fixed;
+      width: 100%;
+    }
     
-    body.is-logged-in #app-shell, 
-    body.is-logged-in nav, 
-    body.is-logged-in aside { display: flex !important; }
+    body.is-logged-in #getting-started-view, 
+    body.is-logged-in #login-view, 
+    body.is-logged-in #signup-view { display: none !important; }
+    body.is-logged-in #app-shell, body.is-logged-in nav, body.is-logged-in aside { display: flex !important; }
+    body:not(.is-logged-in) #app-shell, body:not(.is-logged-in) nav, body:not(.is-logged-in) aside { display: none !important; }
 
     /* Auth-Aware Nav Toggles */
     body.is-logged-in #login-trigger { display: none !important; }
     body.is-logged-in #nav-profile-capsule { display: flex !important; }
     body:not(.is-logged-in) #nav-profile-capsule { display: none !important; }
     body:not(.is-logged-in) #login-trigger { display: flex !important; }
-
-    /* Animation Hooks (Safe Defaults) */
-    .hero-reveal-text span { display: inline-block; }
   </style>
 </head>
 <body class="bg-midnight min-h-screen">
@@ -79,610 +95,266 @@
       </div>
     </div>
 
-    <!-- Search Bar -->
     <div id="nav-search" class="hidden md:flex flex-1 max-w-2xl mx-12">
       <div class="relative w-full">
-        <input type="text" placeholder="Search tutorials, DSA problems, or AI concepts..." class="w-full bg-white/5 border border-white/10 rounded-full py-2 px-6 focus:outline-none focus:border-accent/50 focus:bg-white/10 transition-all" />
-        <button class="absolute right-4 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-100">
-           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.35-4.35"></path></svg>
-        </button>
+        <input type="text" placeholder="Search tutorials, DSA problems..." class="w-full bg-white/5 border border-white/10 rounded-full py-2 px-6 focus:outline-none focus:border-accent/50 focus:bg-white/10 transition-all" />
       </div>
     </div>
 
     <div class="flex items-center gap-4">
-      <button id="upload-demo-btn" class="hidden sm:flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 hover:bg-white/5 transition-all">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-        <span>Upload</span>
-      </button>
       <div id="nav-auth-group" class="relative flex items-center gap-3">
-        <button id="login-trigger" class="px-5 py-2 rounded-full bg-accent text-midnight font-bold hover:brightness-110 transition-all shadow-lg shadow-accent/20">Sign In</button>
-        
-        <!-- Top Right Profile Capsule -->
-        <div id="nav-profile-capsule" class="hidden items-center gap-3 px-3 py-1.5 rounded-full glass border border-white/10 hover:bg-white/5 transition-all cursor-pointer" onclick="document.getElementById('profile-dropdown').classList.toggle('hidden')">
-          <span id="nav-user-name" class="text-sm font-bold text-white pl-2 hidden sm:block">User</span>
+        <a href="#login" id="login-trigger" class="px-5 py-2 rounded-full bg-accent text-midnight font-bold hover:brightness-110 shadow-lg shadow-accent/20">Sign In</a>
+        <div id="nav-profile-capsule" class="hidden items-center gap-3 px-3 py-1.5 rounded-full glass border border-white/10 cursor-pointer" onclick="document.getElementById('profile-dropdown').classList.toggle('hidden')">
           <img id="nav-avatar" class="w-8 h-8 rounded-full border border-accent/50 object-cover" src="" alt="Profile" />
         </div>
-
-        <!-- PROFILE DROPDOWN MENU -->
-        <div id="profile-dropdown" class="absolute top-14 right-0 w-56 glass rounded-2xl shadow-2xl border border-white/10 overflow-hidden hidden z-[100]">
-          <div class="p-4 border-b border-white/5 bg-white/5">
-            <p class="text-xs font-bold text-white/40 uppercase tracking-widest mb-1">Session</p>
-            <p id="dropdown-user-name" class="font-bold text-white truncate">Guest</p>
-          </div>
-          <div class="p-2">
-            <a href="#profile" class="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-white/5 transition-all text-sm">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-              My Profile
-            </a>
-            <a href="#settings" class="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-white/5 transition-all text-sm">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-              Settings
-            </a>
-            <div class="my-2 border-t border-white/5"></div>
-            <button id="logout-btn" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-red-400 hover:bg-red-500/10 transition-all text-sm font-bold">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-              Logout
-            </button>
-          </div>
+        <div id="profile-dropdown" class="absolute top-14 right-0 w-56 glass rounded-2xl shadow-2xl border border-white/10 hidden z-[100]">
+           <div class="p-2">
+             <a href="#profile" class="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-white/5 transition-all text-sm">My Profile</a>
+             <button id="logout-btn" class="w-full text-left px-4 py-2.5 rounded-xl text-red-400 hover:bg-red-500/10 text-sm font-bold">Logout</button>
+           </div>
         </div>
       </div>
     </div>
   </nav>
 
   <!-- SIDEBAR NAVIGATION -->
-  <aside id="main-sidebar" class="fixed left-0 top-16 bottom-0 w-64 glass border-r-0 z-40 hidden lg:block overflow-y-auto">
+  <aside id="main-sidebar" class="fixed left-0 top-16 bottom-0 w-64 glass border-r border-white/5 z-40 hidden lg:block overflow-y-auto">
     <div class="p-4 space-y-1">
-      <a href="#home" class="sidebar-link active flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-all" data-route="home">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-        <span>Home</span>
-      </a>
-      <a href="#trending" class="sidebar-link flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-all" data-route="trending">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 6l-9.5 9.5-5-5L1 18"></path><polyline points="17 6 23 6 23 12"></polyline></svg>
-        <span>Trending</span>
-      </a>
-      <a href="#subscriptions" class="sidebar-link flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-all" data-route="subscriptions">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2" ry="2"></rect><path d="M2 9h20"></path><path d="M9 22V9"></path></svg>
-        <span>Subscriptions</span>
-      </a>
-      <a href="#getting-started" class="sidebar-link flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-all" data-route="getting-started">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-        <span>Getting Started</span>
-      </a>
-    </div>
-
-    <div class="mt-8 px-4">
-      <h3 class="px-4 text-xs font-bold text-white/40 uppercase tracking-widest mb-2">Categories</h3>
-      <div class="space-y-1">
-        <a href="#java" class="sidebar-link flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-all" data-category="Java">
-          <div class="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
-          <span>Java Development</span>
-        </a>
-        <a href="#dsa" class="sidebar-link flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-all" data-category="DSA">
-           <div class="w-1.5 h-1.5 rounded-full bg-purple-500"></div>
-          <span>DSA Masterclass</span>
-        </a>
-        <a href="#webdev" class="sidebar-link flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-all" data-category="WebDev">
-           <div class="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
-          <span>Modern WebDev</span>
-        </a>
-        <a href="#ai" class="sidebar-link flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-all" data-category="AI">
-           <div class="w-1.5 h-1.5 rounded-full bg-cyan-500"></div>
-          <span>Artificial Intelligence</span>
-        </a>
-      </div>
+      <a href="#home" class="sidebar-link active flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-all"><span>Home</span></a>
+      <a href="#trending" class="sidebar-link flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-all"><span>Trending</span></a>
+      <a href="#profile" class="sidebar-link flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-all"><span>Dashboard</span></a>
     </div>
   </aside>
 
   <!-- MAIN CONTENT SHELL -->
   <main id="app-shell" class="lg:ml-64 pt-24 px-6 pb-12 transition-all duration-300">
-    
-    <!-- LOADING STATE (Skeleton) -->
-    <div id="skeleton-loader" class="hidden">
-      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        <div class="space-y-4">
-          <div class="aspect-video w-full rounded-2xl skeleton"></div>
-          <div class="flex gap-4">
-            <div class="w-10 h-10 rounded-full skeleton shrink-0"></div>
-            <div class="space-y-2 w-full">
-              <div class="h-4 w-3/4 rounded skeleton"></div>
-              <div class="h-3 w-1/2 rounded skeleton opacity-50"></div>
-            </div>
-          </div>
-        </div>
-        <!-- Repeat as needed -->
-      </div>
-    </div>
-
-    <!-- VIEW: HOME (Unified Community Hub) -->
+    <!-- HOME VIEW -->
     <div id="home-view" class="view-container">
-      <div class="flex flex-col lg:flex-row gap-8">
-        
-        <!-- SIDEBAR (320px) -->
-        <aside class="w-full lg:w-80 flex flex-col gap-6">
-          <div class="glass p-8 rounded-[2rem] border border-white/5 flex flex-col items-center text-center">
-            <img id="home-sidebar-avatar" class="w-20 h-20 rounded-2xl mb-4 border border-white/10" src="https://ui-avatars.com/api/?name=Architect&background=0B1123&color=00F2FE" />
-            <h3 id="home-sidebar-name" class="font-bold">Architect</h3>
-            <p id="home-sidebar-handle" class="text-[10px] text-accent font-bold tracking-widest uppercase">@codesphere_dev</p>
-            
-            <div class="w-full mt-6 pt-6 border-t border-white/5 space-y-3">
-              <div class="flex justify-between text-xs">
-                <span class="opacity-40">Total Solved</span>
-                <span id="sidebar-total-solved-home" class="font-bold">--</span>
-              </div>
-              <div class="flex justify-between text-xs">
-                <span class="opacity-40">LC Solved</span>
-                <span id="sidebar-lc-solved-home" class="font-bold text-orange-500">--</span>
-              </div>
-            </div>
-          </div>
+      <h2 class="text-2xl font-bold mb-6">Continue Learning</h2>
+      <div id="video-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"></div>
+    </div>
 
-          <div class="glass p-6 rounded-2xl border border-white/5">
-            <h4 class="text-[10px] font-bold uppercase tracking-widest text-white/30 mb-4">Quick Navigation</h4>
-            <nav class="space-y-2">
-              <button class="w-full text-left px-4 py-2 rounded-lg bg-accent/10 text-accent font-bold text-xs">Community Feed</button>
-              <button onclick="location.hash='#profile'" class="w-full text-left px-4 py-2 rounded-lg hover:bg-white/5 text-white/50 text-xs">Architect Hub</button>
-            </nav>
-          </div>
-        </aside>
+    <!-- PROFILE/DASHBOARD VIEW -->
+    <div id="profile-view" class="view-container">
+      <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div class="xl:col-span-2 space-y-6">
+           <div class="glass rounded-3xl p-8"><h3 class="text-xl font-bold mb-4">Platform Stats</h3><div class="grid grid-cols-2 gap-4"><div id="dash-lc-rating-val" class="text-4xl font-bold text-accent">--</div></div></div>
+        </div>
+      </div>
+    </div>
+  </main>
 
-        <!-- MAIN AREA -->
-        <div class="flex-1 space-y-8">
-          <!-- Post Form -->
-          <div class="glass p-8 rounded-[2rem] border border-accent/10">
-            <form id="post-form" class="space-y-4">
-              <textarea id="post-content" placeholder="Broadcast a code insight..." class="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-sm focus:border-accent transition-all outline-none min-h-[100px] resize-none"></textarea>
-              <div class="flex items-center justify-between">
-                <div class="flex gap-4">
-                  <label class="cursor-pointer text-white/40 hover:text-accent transition-colors flex items-center gap-2 text-xs font-bold">
-                    <input type="file" id="post-video" class="hidden" accept="video/*" />
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line><line x1="2" y1="7" x2="7" y2="7"></line><line x1="2" y1="17" x2="7" y2="17"></line><line x1="17" y1="17" x2="22" y2="17"></line><line x1="17" y1="7" x2="22" y2="7"></line></svg>
-                    Attach Walkthrough
-                  </label>
-                </div>
-                <button type="submit" class="px-8 py-3 rounded-xl bg-accent text-midnight font-bold hover:scale-105 transition-all">Broadcast</button>
-              </div>
-            </form>
-          </div>
-
-          <!-- Feed Container -->
-          <div id="feed-container" class="space-y-6">
-            <!-- Injected by feed.js -->
-          </div>
-
-          <!-- Video Grid (Integrated below feed) -->
-          <div class="pt-8 border-t border-white/5">
-            <h3 class="font-bold text-lg mb-6">Course Modules</h3>
-            <div id="video-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <!-- Videos injected by video-logic.js -->
-            </div>
-          </div>
+  <!-- VIEW: GETTING STARTED (Full Landing Page) -->
+  <section id="getting-started-view" class="view-container relative active">
+    <div class="deep-space-bg"></div>
+    
+    <!-- Hero Section -->
+    <div class="min-h-screen w-full flex items-center justify-center p-6 relative">
+      <div id="hero-main-container" class="max-w-4xl text-center z-10">
+        <h1 class="hero-reveal-text text-7xl font-extrabold tracking-tighter mb-6 bg-gradient-to-b from-white to-white/40 bg-clip-text text-transparent">
+          <span>C</span><span>o</span><span>d</span><span>e</span><span>S</span><span>p</span><span>h</span><span>e</span><span>r</span><span>e</span>
+        </h1>
+        <p class="hero-description text-xl text-white/60 mb-10 max-w-2xl mx-auto">
+          The masterclass platform for high-performance developers. Synchronize your progress, solve challenges, and evolve.
+        </p>
+        <div class="hero-cta-group flex gap-4 justify-center">
+          <a href="#signup" class="px-10 py-4 bg-accent text-midnight font-bold rounded-2xl hover:scale-105 transition-all shadow-xl shadow-accent/20">Get Started</a>
+          <a href="#login" class="px-10 py-4 border border-white/10 bg-white/5 rounded-2xl hover:bg-white/10 transition-all">Sign In</a>
         </div>
       </div>
     </div>
 
-    <!-- VIEW: PLAYER (Single Video View) -->
-    <div id="player-view" class="view-container hidden">
-      <div class="flex flex-col xl:flex-row gap-8">
-        <!-- Primary Player Area -->
-        <div class="flex-1">
-          <div class="custom-player-container relative aspect-video rounded-3xl overflow-hidden glass shadow-2xl">
-            <video id="main-player" class="w-full h-full object-cover"></video>
-            
-            <!-- Custom UI Overlays (simplified) -->
-            <div class="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/80 to-transparent p-6 opacity-0 hover:opacity-100 transition-opacity">
-               <div class="flex items-center gap-4">
-                  <button id="player-play-pause" class="text-white hover:text-accent">
-                    <svg width="32" height="32" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>
-                  </button>
-                  <div class="flex-1 h-1.5 bg-white/20 rounded-full relative cursor-pointer group">
-                    <div id="player-progress" class="absolute top-0 left-0 bottom-0 bg-accent rounded-full w-0"></div>
-                    <div class="absolute top-1/2 -translate-y-1/2 -right-2 w-3 h-3 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                  </div>
-                  <button id="player-theater" class="p-2 hover:bg-white/10 rounded-lg" title="Theater Mode">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"></rect><rect x="14" y="10" width="8" height="10"></rect></svg>
-                  </button>
-               </div>
-            </div>
+    <!-- Competitive Programming & Features Section -->
+    <div class="w-full max-w-6xl px-6 pb-32 space-y-32 z-10 mx-auto">
+      
+      <!-- Stats & Heatmap Showcase -->
+      <div class="grid lg:grid-cols-2 gap-12 items-start">
+        <div class="space-y-8">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent text-xs font-bold tracking-widest uppercase">
+            <span class="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
+            Sync Engine Active
           </div>
-
-          <div class="mt-6 space-y-4">
-            <h1 id="player-title" class="text-2xl font-bold">Video Title</h1>
-            <div class="flex items-center justify-between py-2 border-b border-white/5">
-              <div class="flex items-center gap-4">
-                <img id="player-creator-avatar" class="w-12 h-12 rounded-full glass shrink-0" src="" alt="" />
-                <div>
-                  <h3 id="player-creator-name" class="font-bold underline decoration-accent underline-offset-4">Creator Name</h3>
-                  <p class="text-sm text-white/50">120K Subscriptions</p>
-                </div>
-                <button class="bg-white text-midnight px-6 py-2 rounded-full font-bold hover:bg-accent transition-all ml-4">Subscribe</button>
-              </div>
-              <div class="flex items-center gap-2">
-                <button class="flex items-center gap-2 px-4 py-2 glass rounded-full hover:bg-white/10"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3z"></path><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg> <span id="player-likes">0</span></button>
-                <button class="flex items-center gap-2 px-4 py-2 glass rounded-full hover:bg-white/10"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg> Share</button>
-              </div>
-            </div>
-            <div class="p-4 bg-white/5 rounded-2xl">
-              <div class="flex gap-4 font-bold text-sm mb-2">
-                <span id="player-views">0 views</span>
-                <span id="player-date">Oct 24, 2026</span>
-              </div>
-              <p id="player-description" class="text-sm text-white/70 leading-relaxed max-w-3xl">Video description text goes here...</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Sidebar Recommendations -->
-        <div class="w-full xl:w-96 flex flex-col gap-4">
-           <h3 class="font-bold text-lg">Related Videos</h3>
-           <div id="related-grid" class="flex flex-col gap-4">
-              <!-- Related list injected by video-logic.js -->
-           </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- VIEW: PROFILE (Version 1 High-Fidelity Dashboard) -->
-    <div id="profile-view" class="view-container hidden">
-      <div class="flex flex-col lg:flex-row gap-8">
-        
-        <!-- DASHBOARD SIDEBAR (320px) -->
-        <aside class="w-full lg:w-80 flex flex-col gap-6">
-          <div class="glass p-8 rounded-[2rem] border border-white/5 flex flex-col items-center text-center">
-            <div class="relative mb-6">
-              <img id="dash-avatar" class="w-24 h-24 rounded-3xl object-cover border-2 border-accent shadow-2xl shadow-accent/20" src="https://ui-avatars.com/api/?name=User&background=0B1123&color=00F2FE" alt="Avatar" />
-              <div class="absolute -bottom-2 -right-2 w-8 h-8 rounded-xl bg-accent text-midnight flex items-center justify-center font-bold text-xs shadow-lg">PRO</div>
-            </div>
-            <h2 id="dash-name" class="text-xl font-bold mb-1">Architect</h2>
-            <p id="dash-handle" class="text-xs text-accent font-bold tracking-widest uppercase opacity-70">@codesphere_dev</p>
-            
-            <div class="w-full mt-8 pt-8 border-t border-white/5 space-y-4">
-              <div class="flex justify-between items-center text-sm">
-                <span class="text-white/40">Global Rank</span>
-                <span id="dash-rank" class="font-bold text-accent">--</span>
-              </div>
-              <div class="flex justify-between items-center text-sm">
-                <span class="text-white/40">Total Solved</span>
-                <span id="sidebar-total-solved" class="font-bold">--</span>
-              </div>
-              <div class="flex justify-between items-center text-sm">
-                <span class="text-white/40">LeetCode</span>
-                <span id="sidebar-lc-solved" class="font-bold text-orange-500">--</span>
-              </div>
-
-              <div class="flex justify-between items-center text-sm">
-                <span class="text-white/40">CodeForces</span>
-                <span id="sidebar-cf-solved" class="font-bold text-blue-500">--</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Quick Actions -->
-          <button id="dash-sync-btn" class="w-full py-4 rounded-2xl bg-accent text-midnight font-bold flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-accent/20 group">
-            <svg class="group-hover:rotate-180 transition-transform duration-700" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M23 4v6h-6"></path><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-            Sync Matrix
-          </button>
-          <p id="sync-status-msg" class="text-[10px] text-center font-bold uppercase tracking-widest text-white/20"></p>
-        </aside>
-
-        <!-- MAIN DASHBOARD CONTENT -->
-        <div class="flex-1 space-y-8">
+          <h2 class="text-5xl font-bold leading-tight">Master Your <span class="text-accent">Competitive</span> Profile</h2>
+          <p class="text-white/50 text-lg leading-relaxed">
+            One platform to track your LeetCode, CodeForces, and CodeChef progress. Visualize your growth with high-fidelity heatmaps and real-time stats synchronization.
+          </p>
           
-          <!-- TIER 1: HIGH-FIDELITY CONTEST ANALYTICS -->
-          <div class="dashboard-row--tier1 grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <!-- LeetCode Performance Hub -->
-            <div class="dash-card glass p-8 rounded-[3rem] border border-orange-500/10 flex flex-col gap-6">
-              <div class="flex justify-between items-center">
-                <h3 class="font-bold text-sm uppercase tracking-widest text-orange-500">LeetCode Rating Journey</h3>
+          <div class="grid grid-cols-2 gap-6 pt-4">
+            <div class="glass p-6 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
+              <div class="text-3xl font-bold text-accent mb-1">2,400+</div>
+              <div class="text-white/30 text-sm uppercase tracking-widest font-bold">Solved Problems</div>
+            </div>
+            <div class="glass p-6 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
+              <div class="text-3xl font-bold text-accent mb-1">2100+</div>
+              <div class="text-white/30 text-sm uppercase tracking-widest font-bold">Max Rating</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Interactive Dashboard Mockup -->
+        <div class="glass rounded-3xl p-8 border border-white/10 shadow-2xl relative group transition-all duration-500 overflow-hidden">
+          <div class="absolute -inset-1 bg-gradient-to-tr from-accent/20 to-purple-500/20 blur-3xl opacity-50 group-hover:opacity-80 transition-opacity"></div>
+          
+          <div class="relative space-y-8">
+            <div class="flex justify-between items-center border-b border-white/5 pb-4">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
+                  <svg class="text-accent" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                </div>
+                <div>
+                  <div class="font-bold">Sync Engine Preview</div>
+                  <div class="text-[10px] text-white/30 tracking-widest uppercase">Last Sync: Just Now</div>
+                </div>
+              </div>
+              <div class="flex gap-1.5">
+                <div class="w-2.5 h-2.5 rounded-full bg-red-500/30"></div>
+                <div class="w-2.5 h-2.5 rounded-full bg-yellow-500/30"></div>
+                <div class="w-2.5 h-2.5 rounded-full bg-green-500/30"></div>
+              </div>
+            </div>
+            
+            <!-- Heatmap Preview -->
+            <div class="space-y-4">
+              <div class="flex justify-between items-end">
+                <div>
+                  <div class="text-2xl font-bold">342</div>
+                  <div class="text-xs text-white/30">Submissions this year</div>
+                </div>
                 <div class="flex gap-2">
-                  <div class="glass px-3 py-1 rounded-lg text-[10px] font-bold border-white/5">TOTAL: <span id="dash-lc-contests">--</span></div>
+                  <div class="w-3 h-3 rounded-sm bg-white/5"></div>
+                  <div class="w-3 h-3 rounded-sm intensity-1"></div>
+                  <div class="w-3 h-3 rounded-sm intensity-2"></div>
+                  <div class="w-3 h-3 rounded-sm intensity-3"></div>
+                  <div class="w-3 h-3 rounded-sm intensity-4"></div>
                 </div>
               </div>
               
-              <!-- Quick Stats Grid -->
-              <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div class="bg-white/2 px-4 py-3 rounded-2xl border border-white/5">
-                  <p class="text-[8px] uppercase opacity-40 mb-1">Current</p>
-                  <div class="text-lg font-bold" id="dash-lc-rating-val">--</div>
-                </div>
-                <div class="bg-white/2 px-4 py-3 rounded-2xl border border-white/5">
-                  <p class="text-[8px] uppercase opacity-40 mb-1">Peak</p>
-                  <div class="text-lg font-bold" id="dash-lc-peak">--</div>
-                </div>
-                <div class="bg-white/2 px-4 py-3 rounded-2xl border border-white/5">
-                  <p class="text-[8px] uppercase opacity-40 mb-1">Global Rank</p>
-                  <div class="text-lg font-bold" id="dash-lc-last-rank">--</div>
-                </div>
-                <div class="bg-white/2 px-4 py-3 rounded-2xl border border-white/5">
-                  <p class="text-[8px] uppercase opacity-40 mb-1">Rating Change</p>
-                  <div class="text-lg font-bold text-green-400" id="dash-lc-change">--</div>
-                </div>
-              </div>
-
-              <!-- Graph Canvas -->
-              <div class="relative h-48 w-full mt-4">
-                <canvas id="lc-rating-chart"></canvas>
+              <div class="grid grid-cols-12 gap-1.5">
+                <script>
+                  document.write(Array(48).fill(0).map(() => {
+                    const intensity = Math.floor(Math.random() * 5);
+                    return `<div class="aspect-square rounded-sm bg-white/5 ${intensity ? 'intensity-'+intensity : ''} hover:scale-125 transition-transform cursor-pointer"></div>`;
+                  }).join(''));
+                </script>
               </div>
             </div>
 
-            <!-- CodeForces Momentum Hub -->
-            <div class="dash-card glass p-8 rounded-[3rem] border border-blue-500/10 flex flex-col gap-6">
-              <div class="flex justify-between items-center">
-                <h3 class="font-bold text-sm uppercase tracking-widest text-blue-500">CodeForces Momentum</h3>
-                <div id="dash-cf-title-badge" class="px-3 py-1 rounded-lg bg-blue-500/10 text-blue-500 text-[10px] font-bold">--</div>
+            <!-- Stats grid -->
+            <div class="grid grid-cols-3 gap-4 pt-4">
+              <div class="text-center p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-white/10 transition-all">
+                <div class="text-[10px] text-white/30 mb-1 uppercase tracking-tighter">Easy</div>
+                <div class="text-xl font-bold text-green-400">452</div>
               </div>
-
-              <!-- Quick Stats Grid -->
-              <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div class="bg-white/2 px-4 py-3 rounded-2xl border border-white/5">
-                  <p class="text-[8px] uppercase opacity-40 mb-1">ELO</p>
-                  <div class="text-lg font-bold" id="dash-cf-rating-val">--</div>
-                </div>
-                <div class="bg-white/2 px-4 py-3 rounded-2xl border border-white/5">
-                  <p class="text-[8px] uppercase opacity-40 mb-1">Max ELO</p>
-                  <div class="text-lg font-bold" id="dash-cf-max-rating">--</div>
-                </div>
-                <div class="bg-white/2 px-4 py-3 rounded-2xl border border-white/5">
-                  <p class="text-[8px] uppercase opacity-40 mb-1">Global Rank</p>
-                  <div class="text-lg font-bold" id="dash-cf-last-rank">--</div>
-                </div>
-                <div class="bg-white/2 px-4 py-3 rounded-2xl border border-white/5">
-                  <p class="text-[8px] uppercase opacity-40 mb-1">Contests</p>
-                  <div class="text-lg font-bold" id="dash-cf-contests">--</div>
-                </div>
+              <div class="text-center p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-white/10 transition-all">
+                <div class="text-[10px] text-white/30 mb-1 uppercase tracking-tighter">Medium</div>
+                <div class="text-xl font-bold text-yellow-400">892</div>
               </div>
-
-              <!-- Graph Canvas -->
-              <div class="relative h-48 w-full mt-4">
-                <canvas id="cf-rating-chart"></canvas>
-              </div>
-            </div>
-          </div>
-
-          <!-- TIER 3: FUSED HEATMAP (Now following TIER 1 directly) -->
-          <div class="dashboard-row--tier3 glass p-8 rounded-[2rem] border border-white/5">
-            <div class="flex items-center justify-between mb-6">
-              <h3 class="font-bold text-sm uppercase tracking-widest opacity-50">Unified Activity Matrix</h3>
-              <div class="text-sm font-bold"><span id="dash-submissions-year">0</span> <span class="text-white/30 font-normal">Submissions in 12 months</span></div>
-            </div>
-            <div id="heatmap-main-wrapper" class="flex gap-4 overflow-x-auto pb-4 custom-scrollbar">
-               <!-- Month blocks injected by dashboard.js -->
-            </div>
-          </div>
-
-          <!-- TIER 4: RECENT ACTIVITY -->
-          <div class="dashboard-row--tier4 glass p-8 rounded-[2rem] border border-white/5">
-            <h3 class="font-bold text-sm uppercase tracking-widest opacity-50 mb-6">Recent Accepted Solutions</h3>
-            <ul id="dash-recent-ac" class="space-y-3">
-              <!-- AC Items injected by dashboard.js -->
-            </ul>
-          </div>
-
-        </div>
-      </div>
-    </div>
-
-    <!-- VIEW: SETTINGS (User Configuration) -->
-    <div id="settings-view" class="view-container hidden pt-4">
-      <div class="max-w-4xl mx-auto flex flex-col gap-8">
-        <!-- Settings Header -->
-        <div class="flex items-center justify-between glass p-8 rounded-[2rem] border border-white/10">
-          <div class="flex items-center gap-6">
-            <div class="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-            </div>
-            <div>
-              <h1 class="text-3xl font-bold">Workspace Settings</h1>
-              <p class="text-sm text-white/40">Configure your identity and platform integrations.</p>
-            </div>
-          </div>
-          <button id="settings-save-btn" class="px-8 py-4 rounded-2xl bg-accent text-midnight font-bold hover:brightness-110 transition-all shadow-xl shadow-accent/20">
-            Save Changes
-          </button>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
-          <!-- Sidebar Tabs -->
-          <div class="space-y-2">
-            <button class="settings-tab active w-full text-left px-6 py-3 rounded-xl bg-white/5 border border-white/10 font-bold text-sm" data-tab="accounts">Platform Handles</button>
-            <button class="settings-tab w-full text-left px-6 py-3 rounded-xl hover:bg-white/5 border border-transparent font-bold text-sm" data-tab="profile">Profile Identity</button>
-          </div>
-
-          <!-- Content Panes -->
-          <div class="md:col-span-3 space-y-6">
-            <div id="tab-accounts" class="tab-pane active space-y-6">
-              <div class="glass p-8 rounded-[2rem] border border-white/5 space-y-6">
-                <h3 class="font-bold text-lg">External Accounts</h3>
-                <div class="space-y-4">
-                  <div class="space-y-2">
-                    <label class="text-[10px] font-bold uppercase tracking-widest text-white/30">LeetCode Username</label>
-                    <input type="text" id="set-lc-handle" placeholder="e.g. coder_zero" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:border-accent transition-all outline-none" />
-                  </div>
-
-                  <div class="space-y-2">
-                    <label class="text-[10px] font-bold uppercase tracking-widest text-white/30">CodeForces Handle</label>
-                    <input type="text" id="set-cf-handle" placeholder="e.g. tour_ist" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:border-accent transition-all outline-none" />
-                  </div>
-                </div>
+              <div class="text-center p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-white/10 transition-all">
+                <div class="text-[10px] text-white/30 mb-1 uppercase tracking-tighter">Hard</div>
+                <div class="text-xl font-bold text-red-400">124</div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- VIEW: GETTING STARTED (Hero + Auth Card) -->
-    <section id="getting-started-view" class="view-container relative min-h-screen w-full flex items-center justify-center p-6 overflow-hidden">
-      <div class="deep-space-bg"></div>
-
-      <!-- 1. HERO CONTENT (Initially Visible) -->
-      <div id="hero-main-container" class="max-w-4xl text-center z-10">
-        <div class="hero-badge inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-sm text-white/50 mb-8">
-          <span class="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
-          V2 Evolution &mdash; Perfect Symmetry
-        </div>
-
-        <h1 class="hero-reveal-text text-6xl md:text-8xl font-black tracking-tighter mb-6 text-white">
-          <span>C</span><span>o</span><span>d</span><span>e</span><span>S</span><span>p</span><span>e</span><span>r</span><span>e</span>
-        </h1>
-
-        <p class="hero-description text-xl text-white/50 mb-10 max-w-2xl mx-auto">
-          The ultimate developer cockpit. Refined, centered, and optimized for professional flow.
-        </p>
-
-        <div class="hero-cta-group flex flex-col sm:flex-row items-center justify-center gap-4">
-          <button id="get-started-btn" class="neon-btn neon-btn-primary h-12 w-full max-w-[240px] rounded-xl font-bold text-lg flex items-center justify-center gap-3">
-            Get Started
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-          </button>
-          <button id="hero-login-btn" class="px-10 py-3 rounded-xl bg-white/5 border border-white/10 font-bold text-lg hover:bg-white/10 transition-all">
-            Sign In
-          </button>
-        </div>
-
-        <!-- Feature Row -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mt-24">
-          <div class="feature-card-v2 glass-auth-card p-8 text-left">
-            <div class="text-accent mb-4"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10H12V2z"></path></svg></div>
-            <h3 class="font-bold mb-2">Sync Matrix</h3>
-            <p class="text-sm text-white/40">Clinical data aggregation for CP enthusiasts.</p>
+      <!-- Video Engine Teaser -->
+      <div class="text-center space-y-12">
+        <h2 class="text-4xl font-bold">Experience the <span class="text-accent italic">Cinematic</span> Video Engine</h2>
+        <div class="relative aspect-video max-w-4xl mx-auto rounded-3xl overflow-hidden shadow-2xl border border-white/10 group">
+          <div class="absolute inset-0 bg-gradient-to-t from-midnight/80 to-transparent z-10"></div>
+          <div class="absolute inset-0 flex items-center justify-center z-20">
+            <div class="w-20 h-20 rounded-full bg-accent/20 backdrop-blur-xl border border-accent/40 flex items-center justify-center hover:scale-110 transition-all cursor-pointer group-hover:bg-accent/40">
+              <svg class="text-accent ml-1" width="32" height="32" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>
+            </div>
           </div>
-          <div class="feature-card-v2 glass-auth-card p-8 text-left">
-            <div class="text-accent mb-4"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg></div>
-            <h3 class="font-bold mb-2">AI Mentor</h3>
-            <p class="text-sm text-white/40">Proactive algorithmic guidance in deep space.</p>
-          </div>
-          <div class="feature-card-v2 glass-auth-card p-8 text-left">
-            <div class="text-accent mb-4"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect></svg></div>
-            <h3 class="font-bold mb-2">Video Hub</h3>
-            <p class="text-sm text-white/40">Streaming walkthroughs for complex concepts.</p>
-          </div>
+          <img src="https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=2070&auto=format&fit=crop" class="w-full h-full object-cover grayscale opacity-40 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700" alt="Video Preview" />
         </div>
       </div>
+    </div>
+  </section>
 
-      <!-- 2. AUTH CARD (Centered Flex) -->
-      <div id="auth-container" class="w-full max-w-lg z-10 hidden">
-        <div class="glass-auth-card p-12">
-          <div class="text-center mb-10">
-            <h2 id="auth-title" class="text-3xl font-bold mb-2">Initialize Hub</h2>
-            <p id="auth-subtitle" class="text-white/40">Secure entry to the workspace.</p>
-          </div>
-
-          <div class="auth-form-wrapper">
-            <!-- LOGIN FORM -->
-            <form id="login-form" class="flex flex-col">
-              <div class="space-y-4 mb-8">
-                <div class="space-y-2">
-                  <label class="text-[10px] font-bold uppercase tracking-widest text-white/30">Identifier</label>
-                  <input type="email" placeholder="dev@codesphere.io" class="w-full auth-input" required />
-                </div>
-                <div class="space-y-2">
-                  <label class="text-[10px] font-bold uppercase tracking-widest text-white/30">Passphrase</label>
-                  <input type="password" placeholder="••••••••" class="w-full auth-input" required />
-                </div>
-              </div>
-
-              <div class="flex flex-col items-center gap-6">
-                <button type="submit" class="auth-v2-btn mx-auto">
-                  ENTER PORTAL
-                </button>
-                <button type="button" id="switch-to-signup" class="text-white/30 hover:text-white transition-colors text-sm mx-auto">
-                  New Identity? <span class="text-accent font-bold">Register Now</span>
-                </button>
-              </div>
-            </form>
-
-            <!-- SIGNUP FORM -->
-            <form id="signup-form" class="flex flex-col" style="display:none;">
-              <div class="space-y-4 mb-8">
-                <div class="grid grid-cols-2 gap-4">
-                  <div class="space-y-2">
-                    <label class="text-[10px] font-bold uppercase tracking-widest text-white/30">Username</label>
-                    <input type="text" name="username" placeholder="coder_zero" class="w-full auth-input" required />
-                  </div>
-                  <div class="space-y-2">
-                    <label class="text-[10px] font-bold uppercase tracking-widest text-white/30">Email</label>
-                    <input type="email" placeholder="dev@codesphere.io" class="w-full auth-input" required />
-                  </div>
-                </div>
-                <div class="space-y-2">
-                  <label class="text-[10px] font-bold uppercase tracking-widest text-white/30">Security Key</label>
-                  <input type="password" placeholder="••••••••" class="w-full auth-input" required />
-                </div>
-                <div class="pt-4 border-t border-white/5 grid grid-cols-2 gap-2">
-                  <input type="text" name="leetcode" placeholder="LC" class="auth-input text-xs py-2" />
-                  <input type="text" name="codeforces" placeholder="CF" class="auth-input text-xs py-2" />
-                </div>
-              </div>
-
-              <div class="flex flex-col items-center gap-6">
-                <button type="submit" class="auth-v2-btn mx-auto">
-                  INITIALIZE HUB
-                </button>
-                <button type="button" id="switch-to-login" class="text-white/30 hover:text-white transition-colors text-sm mx-auto">
-                  Existing Member? <span class="text-accent font-bold">Sign In</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+  <!-- VIEW: LOGIN (Dedicated Overlay) -->
+  <section id="login-view" class="view-container">
+    <div class="glass w-full max-w-md rounded-3xl p-8 border border-white/10 shadow-2xl relative mx-6 z-10">
+      <div class="text-center mb-8">
+        <h2 class="text-3xl font-bold mb-2">Portal Access</h2>
+        <p class="text-white/40 text-sm">Sign in to continue your journey.</p>
       </div>
-    </section>
-  </main>
-
-  <!-- AI MENTOR WIDGET (Preserved as global) -->
-  <button id="ai-mentor-toggle" class="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-accent text-midnight flex items-center justify-center shadow-2xl shadow-accent/40 z-[100] hover:scale-110 transition-all">
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"></path><path d="M12 7a1 1 0 0 1 1 1v4a1 1 0 0 1-2 0V8a1 1 0 0 1 1-1zm0 9a1 1 0 1 1-1 1 1 1 0 0 1 1-1z"></path></svg>
-  </button>
-
-  <div id="ai-mentor-window" class="fixed bottom-24 right-6 w-96 glass rounded-3xl shadow-2xl z-[100] flex flex-col overflow-hidden border border-white/10" hidden>
-    <div class="p-4 border-b border-white/10 flex items-center justify-between bg-white/5">
-      <span class="font-bold">AI Mentor</span>
-      <button id="ai-window-close" class="text-white/40 hover:text-white transition-colors">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-      </button>
+      <form id="login-form" class="space-y-4">
+        <input type="email" placeholder="Email Address" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:border-accent outline-none transition-all" required />
+        <input type="password" placeholder="Password" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:border-accent outline-none transition-all" required />
+        <button type="submit" class="w-full bg-accent text-midnight font-bold py-4 rounded-xl hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-accent/20">Sign In</button>
+        <div class="flex justify-between items-center mt-6 text-sm">
+          <a href="#getting-started" class="text-white/40 hover:text-white">← Back</a>
+          <p class="text-white/40">Don't have an account? <a href="#signup" class="text-accent font-bold hover:underline">Create One</a></p>
+        </div>
+      </form>
     </div>
-    <div id="ai-chat-body" class="flex-1 p-4 space-y-4 max-h-[400px] overflow-y-auto"></div>
-    <div class="p-4 bg-white/5 flex gap-2">
-      <input id="ai-question" type="text" placeholder="Ask anything..." class="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none" />
-      <button id="ask-ai-btn" class="p-2 bg-accent text-midnight rounded-xl hover:brightness-110">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-      </button>
+  </section>
+
+  <!-- VIEW: SIGNUP (Dedicated Overlay) -->
+  <section id="signup-view" class="view-container">
+    <div class="glass w-full max-w-md rounded-3xl p-8 border border-white/10 shadow-2xl relative mx-6 z-10">
+      <div class="text-center mb-8">
+        <h2 class="text-3xl font-bold mb-2">Initialize Hub</h2>
+        <p class="text-white/40 text-sm">Create your secure developer identity.</p>
+      </div>
+      <form id="signup-form" class="space-y-4">
+        <input type="text" name="username" placeholder="Username" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:border-accent outline-none transition-all" required />
+        <input type="email" placeholder="Email Address" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:border-accent outline-none transition-all" required />
+        <input type="password" placeholder="Password" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:border-accent outline-none transition-all" required />
+        <div class="grid grid-cols-2 gap-4">
+          <input type="text" name="leetcode" placeholder="LeetCode Handle" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:border-accent outline-none transition-all" />
+          <input type="text" name="codeforces" placeholder="CodeForces Handle" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:border-accent outline-none transition-all" />
+        </div>
+        <button type="submit" class="w-full bg-accent text-midnight font-bold py-4 rounded-xl hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-accent/20">Initialize Hub</button>
+        <div class="flex justify-between items-center mt-6 text-sm">
+          <a href="#getting-started" class="text-white/40 hover:text-white">← Back</a>
+          <p class="text-white/40">Already a member? <a href="#login" class="text-accent font-bold hover:underline">Sign In</a></p>
+        </div>
+      </form>
     </div>
+  </section>
+
+  <!-- AI MENTOR WIDGET -->
+  <div id="ai-mentor-container" class="fixed bottom-6 right-6 z-[100]">
+    <button id="ai-mentor-toggle" class="w-14 h-14 bg-accent text-midnight rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-all">
+       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+    </button>
   </div>
-
-  <input type="file" id="local-video-input" accept="video/mp4,video/x-m4v,video/*" class="hidden" />
 
   <!-- SCRIPTS -->
   <script type="module">
-    // AUTH HANDSHAKE: Immediately reveal UI based on session
-    const user = sessionStorage.getItem('cs_user');
-    if (user) {
-      document.body.classList.add('is-logged-in');
-    }
-
     import { dashboard } from '/js/features/dashboard.js';
     import { settings } from '/js/features/settings.js';
-    import { feed } from '/js/features/feed.js';
-    import '/js/auth/auth.js';
+    import { router } from '/js/core/app-router.js';
+    import { auth } from '/js/auth/auth.js';
     import '/js/features/mentor.js';
     import '/js/v2-video-logic.js';
-    import '/js/auth-gsap-engine.js';
 
-    window.CodeSphere = window.CodeSphere || {};
-    window.CodeSphere.dashboard = dashboard;
-    window.CodeSphere.settings = settings;
-    window.CodeSphere.feed = feed;
+    window.CodeSphere = { dashboard, settings, router, auth };
 
-    // Initialization Sequence
-    try {
-      dashboard.loadState();
-      dashboard.init();
-      settings.init();
-      feed.initFeed();
-      feed.listenToFeed();
-      console.log('[CodeSphere] V2 Workspace Initialized');
-    } catch (e) {
-      console.error('[CodeSphere] Init Error:', e);
+    const boot = async () => {
+      console.log('[CodeSphere] Booting V2...');
+      const user = sessionStorage.getItem('cs_user');
+      document.body.classList.toggle('is-logged-in', !!user);
+      
+      try {
+        auth.init();
+        dashboard.loadState();
+        settings.init();
+        router.handleRoute();
+        console.log('[CodeSphere] System Ready');
+      } catch (e) {
+        console.error('[CodeSphere] Boot Failure:', e);
+      }
+    };
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', boot);
+    } else {
+      boot();
     }
   </script>
 </body>

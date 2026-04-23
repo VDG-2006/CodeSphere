@@ -1,29 +1,11 @@
 /**
  * mentor.js — CodeSphere AI Mentor Module (Floating Widget Version)
- * Handles the fixed bottom-right AI assistant widget.
+ * Updated: Proxying calls through the backend to protect API keys.
+ * Unified: Using core utility functions.
  */
 
-import { GoogleGenerativeAI } from 'https://esm.run/@google/generative-ai';
-import { GEMINI_API_KEY } from '../core/config.js';
-
-const API_KEY = GEMINI_API_KEY ?? 'AIzaSyB5QBJjHQZio5F7O9tkZx5TU_RBoYojfN4';
-
-const SYSTEM_INSTRUCTION = `
-You are a senior B.Tech Computer Science & Engineering project mentor.
-Your role is to guide students through technical challenges, code reviews,
-data structure problems, algorithm design, project architecture, and career questions.
-
-Communication style:
-- Concise and to the point.
-- Technically precise.
-- Actionable advice.
-`.trim();
-
-const genAI = new GoogleGenerativeAI(API_KEY);
-const model = genAI.getGenerativeModel({
-  model: 'gemini-1.5-flash',
-  systemInstruction: SYSTEM_INSTRUCTION,
-});
+import { API_BASE } from '../core/config.js';
+import { escapeHtml } from '../core/utils.js';
 
 // ─────────────────────────────────────────────────────────────────
 // DOM Elements
@@ -88,38 +70,45 @@ const appendMessage = (text, type = 'bot', isHtml = false) => {
 };
 
 const parseMarkdown = (text) => {
-  if (text.length > 4000) text = text.substring(0, 4000) + '... (Truncated for performance)';
+  if (!text) return '';
+  if (text.length > 4000) text = text.substring(0, 4000) + '... (Truncated)';
   
-  let safeText = String(text).replace(/[&<>"']/g, match => 
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[match]
-  );
-
-  safeText = safeText
+  // Use core escapeHtml then apply markdown formatting
+  let safeText = escapeHtml(text);
+  
+  return safeText
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/__(.*?)__/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/_(.*?)_/g, '<em>$1</em>')
       .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
       .replace(/`([^`]+)`/g, '<code>$1</code>')
       .replace(/\n/g, '<br>');
-
-  return safeText;
 };
 
 // ─────────────────────────────────────────────────────────────────
-// Core Ask Logic
+// Core Ask Logic (Proxied via Backend)
 // ─────────────────────────────────────────────────────────────────
 
 export const askMentor = async (promptText) => {
   if (!promptText?.trim()) return 'Please enter a question.';
 
   try {
-    const result = await model.generateContent(promptText);
-    const response = await result.response;
-    return response.text();
+    const response = await fetch(`${API_BASE}/mentor/chat`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${sessionStorage.getItem('cs_token')}`
+      },
+      body: JSON.stringify({ prompt: promptText })
+    });
+
+    const result = await response.json();
+    if (result.success) {
+      return result.reply;
+    } else {
+      return result.message || '⚠️ Mentor unavailable.';
+    }
   } catch (error) {
-    console.error('[Mentor] Error:', error);
-    return '⚠️ Mentor unavailable. Please try again.';
+    console.error('[Mentor] Request Error:', error);
+    return '⚠️ Connection error. Please try again.';
   }
 };
 
@@ -127,20 +116,14 @@ const handleAsk = async () => {
   const question = input?.value.trim();
   if (!question) return;
 
-  // Clear input
   input.value = '';
-
-  // User message
   appendMessage(question, 'user');
 
-  // Loading state
   if (sendBtn) sendBtn.disabled = true;
   const loadingMsg = appendMessage('Thinking...', 'bot');
-  loadingMsg.style.opacity = '0.7';
 
   const reply = await askMentor(question);
 
-  // Remove loading and show reply
   loadingMsg.remove();
   appendMessage(parseMarkdown(reply), 'bot', true);
   
@@ -155,9 +138,6 @@ input?.addEventListener('keydown', (e) => {
   }
 });
 
-// ─────────────────────────────────────────────────────────────────
-// Init
-// ─────────────────────────────────────────────────────────────────
-
+// Global Exposure
 window.CodeSphere = window.CodeSphere ?? {};
 window.CodeSphere.mentor = { askMentor, toggle: toggleMentor };
