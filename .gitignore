@@ -1,0 +1,23 @@
+# ── Sensitive runtime config ────────────────────────────────
+# Never commit the real credentials file.
+js/core/config.js
+.env
+server/.env
+
+# ── OS / Editor junk ────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.log
+
+# ── Node ───────────────────────────────────────────────────
+node_modules/
+**/node_modules/
+package-lock.json
+
+# ── MongoDB Data, Logs, & Binaries ─────────────────────────
+server/data/db/
+server/data/log/
+server/mongodb/
+
+# Binaries
+*.msi

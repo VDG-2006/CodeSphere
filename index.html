@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CodeSphere | Professional Education for Developers</title>
+  
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { midnight: '#0B1123', 'midnight-light': '#151C33', accent: '#00F2FE', 'accent-blue': '#007AFF' },
+          backdropBlur: { 'xl': '12px' },
+          safelist: [
+            { pattern: /bg-(green|orange|red|blue|purple|cyan)-500/ },
+            { pattern: /text-(green|orange|red|blue|purple|cyan)-400/ },
+            { pattern: /bg-accent/ },
+            { pattern: /intensity-[0-4]/ }
+          ]
+        }
+      }
+    }
+  </script>
+
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/TextPlugin.min.js"></script>
+
+  <link href="css/landing-v2.css" rel="stylesheet" />
+  <link href="css/auth-v2.css" rel="stylesheet" />
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #0B1123; color: white; overflow-x: hidden; }
+    .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
+    
+    /* V2 Visibility Management */
+    .view-container { 
+      display: none; 
+      opacity: 0; 
+      transition: opacity 0.4s ease; 
+    }
+    .view-container.active { 
+      display: flex; 
+      opacity: 1; 
+      flex-direction: column; 
+      width: 100%; 
+    }
+    /* Special handling for Auth Views to ensure they are centered and above everything */
+    #login-view.active, #signup-view.active {
+      display: flex !important;
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      background: rgba(11, 17, 35, 0.8);
+      backdrop-filter: blur(8px);
+    }
+    
+    body.no-scroll { 
+      overflow: hidden; 
+      height: 100vh; 
+      position: fixed;
+      width: 100%;
+    }
+    
+    body.is-logged-in #getting-started-view, 
+    body.is-logged-in #login-view, 
+    body.is-logged-in #signup-view { display: none !important; }
+    body.is-logged-in #app-shell, body.is-logged-in nav, body.is-logged-in aside { display: flex !important; }
+    body:not(.is-logged-in) #app-shell, body:not(.is-logged-in) nav, body:not(.is-logged-in) aside { display: none !important; }
+
+    /* Auth-Aware Nav Toggles */
+    body.is-logged-in #login-trigger { display: none !important; }
+    body.is-logged-in #nav-profile-capsule { display: flex !important; }
+    body:not(.is-logged-in) #nav-profile-capsule { display: none !important; }
+    body:not(.is-logged-in) #login-trigger { display: flex !important; }
+  </style>
+</head>
+<body class="bg-midnight min-h-screen">
+
+  <!-- TOP NAVIGATION BAR -->
+  <nav class="fixed top-0 left-0 right-0 h-16 glass z-50 flex items-center justify-between px-6">
+    <div class="flex items-center gap-4">
+      <button id="sidebar-toggle" class="p-2 hover:bg-white/10 rounded-full">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+      </button>
+      <div class="flex items-center gap-2 cursor-pointer" onclick="location.hash='#home'">
+        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-accent to-accent-blue flex items-center justify-center p-1.5 shadow-lg shadow-accent/20">
+          <svg viewBox="0 0 24 24" fill="white"><path d="M10 16.5l6-4.5-6-4.5v9zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"></path></svg>
+        </div>
+        <span class="text-xl font-bold tracking-tight">CodeSphere</span>
+      </div>
+    </div>
+
+    <div id="nav-search" class="hidden md:flex flex-1 max-w-2xl mx-12">
+      <div class="relative w-full">
+        <input type="text" placeholder="Search tutorials, DSA problems..." class="w-full bg-white/5 border border-white/10 rounded-full py-2 px-6 focus:outline-none focus:border-accent/50 focus:bg-white/10 transition-all" />
+      </div>
+    </div>
+
+    <div class="flex items-center gap-4">
+      <div id="nav-auth-group" class="relative flex items-center gap-3">
+        <a href="#login" id="login-trigger" class="px-5 py-2 rounded-full bg-accent text-midnight font-bold hover:brightness-110 shadow-lg shadow-accent/20">Sign In</a>
+        <div id="nav-profile-capsule" class="hidden items-center gap-3 px-3 py-1.5 rounded-full glass border border-white/10 cursor-pointer" onclick="document.getElementById('profile-dropdown').classList.toggle('hidden')">
+          <img id="nav-avatar" class="w-8 h-8 rounded-full border border-accent/50 object-cover" src="" alt="Profile" />
+        </div>
+        <div id="profile-dropdown" class="absolute top-14 right-0 w-56 glass rounded-2xl shadow-2xl border border-white/10 hidden z-[100]">
+           <div class="p-2">
+             <a href="#profile" class="flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-white/5 transition-all text-sm">My Profile</a>
+             <button id="logout-btn" class="w-full text-left px-4 py-2.5 rounded-xl text-red-400 hover:bg-red-500/10 text-sm font-bold">Logout</button>
+           </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- SIDEBAR NAVIGATION -->
+  <aside id="main-sidebar" class="fixed left-0 top-16 bottom-0 w-64 glass border-r border-white/5 z-40 hidden lg:block overflow-y-auto">
+    <div class="p-4 space-y-1">
+      <a href="#home" class="sidebar-link active flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-all"><span>Home</span></a>
+      <a href="#trending" class="sidebar-link flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-all"><span>Trending</span></a>
+      <a href="#profile" class="sidebar-link flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-all"><span>Dashboard</span></a>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT SHELL -->
+  <main id="app-shell" class="lg:ml-64 pt-24 px-6 pb-12 transition-all duration-300">
+    <!-- HOME VIEW -->
+    <div id="home-view" class="view-container">
+      <h2 class="text-2xl font-bold mb-6">Continue Learning</h2>
+      <div id="video-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"></div>
+    </div>
+
+    <!-- PROFILE/DASHBOARD VIEW -->
+    <div id="profile-view" class="view-container">
+      <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div class="xl:col-span-2 space-y-6">
+           <div class="glass rounded-3xl p-8"><h3 class="text-xl font-bold mb-4">Platform Stats</h3><div class="grid grid-cols-2 gap-4"><div id="dash-lc-rating-val" class="text-4xl font-bold text-accent">--</div></div></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- VIEW: GETTING STARTED (Full Landing Page) -->
+  <section id="getting-started-view" class="view-container relative active">
+    <div class="deep-space-bg"></div>
+    
+    <!-- Hero Section -->
+    <div class="min-h-screen w-full flex items-center justify-center p-6 relative">
+      <div id="hero-main-container" class="max-w-4xl text-center z-10">
+        <h1 class="hero-reveal-text text-7xl font-extrabold tracking-tighter mb-6 bg-gradient-to-b from-white to-white/40 bg-clip-text text-transparent">
+          <span>C</span><span>o</span><span>d</span><span>e</span><span>S</span><span>p</span><span>h</span><span>e</span><span>r</span><span>e</span>
+        </h1>
+        <p class="hero-description text-xl text-white/60 mb-10 max-w-2xl mx-auto">
+          The masterclass platform for high-performance developers. Synchronize your progress, solve challenges, and evolve.
+        </p>
+        <div class="hero-cta-group flex gap-4 justify-center">
+          <a href="#signup" class="px-10 py-4 bg-accent text-midnight font-bold rounded-2xl hover:scale-105 transition-all shadow-xl shadow-accent/20">Get Started</a>
+          <a href="#login" class="px-10 py-4 border border-white/10 bg-white/5 rounded-2xl hover:bg-white/10 transition-all">Sign In</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Competitive Programming & Features Section -->
+    <div class="w-full max-w-6xl px-6 pb-32 space-y-32 z-10 mx-auto">
+      
+      <!-- Stats & Heatmap Showcase -->
+      <div class="grid lg:grid-cols-2 gap-12 items-start">
+        <div class="space-y-8">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 border border-accent/20 text-accent text-xs font-bold tracking-widest uppercase">
+            <span class="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
+            Sync Engine Active
+          </div>
+          <h2 class="text-5xl font-bold leading-tight">Master Your <span class="text-accent">Competitive</span> Profile</h2>
+          <p class="text-white/50 text-lg leading-relaxed">
+            One platform to track your LeetCode, CodeForces, and CodeChef progress. Visualize your growth with high-fidelity heatmaps and real-time stats synchronization.
+          </p>
+          
+          <div class="grid grid-cols-2 gap-6 pt-4">
+            <div class="glass p-6 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
+              <div class="text-3xl font-bold text-accent mb-1">2,400+</div>
+              <div class="text-white/30 text-sm uppercase tracking-widest font-bold">Solved Problems</div>
+            </div>
+            <div class="glass p-6 rounded-2xl border border-white/5 hover:border-white/10 transition-colors">
+              <div class="text-3xl font-bold text-accent mb-1">2100+</div>
+              <div class="text-white/30 text-sm uppercase tracking-widest font-bold">Max Rating</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Interactive Dashboard Mockup -->
+        <div class="glass rounded-3xl p-8 border border-white/10 shadow-2xl relative group transition-all duration-500 overflow-hidden">
+          <div class="absolute -inset-1 bg-gradient-to-tr from-accent/20 to-purple-500/20 blur-3xl opacity-50 group-hover:opacity-80 transition-opacity"></div>
+          
+          <div class="relative space-y-8">
+            <div class="flex justify-between items-center border-b border-white/5 pb-4">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-accent/20 flex items-center justify-center">
+                  <svg class="text-accent" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                </div>
+                <div>
+                  <div class="font-bold">Sync Engine Preview</div>
+                  <div class="text-[10px] text-white/30 tracking-widest uppercase">Last Sync: Just Now</div>
+                </div>
+              </div>
+              <div class="flex gap-1.5">
+                <div class="w-2.5 h-2.5 rounded-full bg-red-500/30"></div>
+                <div class="w-2.5 h-2.5 rounded-full bg-yellow-500/30"></div>
+                <div class="w-2.5 h-2.5 rounded-full bg-green-500/30"></div>
+              </div>
+            </div>
+            
+            <!-- Heatmap Preview -->
+            <div class="space-y-4">
+              <div class="flex justify-between items-end">
+                <div>
+                  <div class="text-2xl font-bold">342</div>
+                  <div class="text-xs text-white/30">Submissions this year</div>
+                </div>
+                <div class="flex gap-2">
+                  <div class="w-3 h-3 rounded-sm bg-white/5"></div>
+                  <div class="w-3 h-3 rounded-sm intensity-1"></div>
+                  <div class="w-3 h-3 rounded-sm intensity-2"></div>
+                  <div class="w-3 h-3 rounded-sm intensity-3"></div>
+                  <div class="w-3 h-3 rounded-sm intensity-4"></div>
+                </div>
+              </div>
+              
+              <div class="grid grid-cols-12 gap-1.5">
+                <script>
+                  document.write(Array(48).fill(0).map(() => {
+                    const intensity = Math.floor(Math.random() * 5);
+                    return `<div class="aspect-square rounded-sm bg-white/5 ${intensity ? 'intensity-'+intensity : ''} hover:scale-125 transition-transform cursor-pointer"></div>`;
+                  }).join(''));
+                </script>
+              </div>
+            </div>
+
+            <!-- Stats grid -->
+            <div class="grid grid-cols-3 gap-4 pt-4">
+              <div class="text-center p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-white/10 transition-all">
+                <div class="text-[10px] text-white/30 mb-1 uppercase tracking-tighter">Easy</div>
+                <div class="text-xl font-bold text-green-400">452</div>
+              </div>
+              <div class="text-center p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-white/10 transition-all">
+                <div class="text-[10px] text-white/30 mb-1 uppercase tracking-tighter">Medium</div>
+                <div class="text-xl font-bold text-yellow-400">892</div>
+              </div>
+              <div class="text-center p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-white/10 transition-all">
+                <div class="text-[10px] text-white/30 mb-1 uppercase tracking-tighter">Hard</div>
+                <div class="text-xl font-bold text-red-400">124</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Video Engine Teaser -->
+      <div class="text-center space-y-12">
+        <h2 class="text-4xl font-bold">Experience the <span class="text-accent italic">Cinematic</span> Video Engine</h2>
+        <div class="relative aspect-video max-w-4xl mx-auto rounded-3xl overflow-hidden shadow-2xl border border-white/10 group">
+          <div class="absolute inset-0 bg-gradient-to-t from-midnight/80 to-transparent z-10"></div>
+          <div class="absolute inset-0 flex items-center justify-center z-20">
+            <div class="w-20 h-20 rounded-full bg-accent/20 backdrop-blur-xl border border-accent/40 flex items-center justify-center hover:scale-110 transition-all cursor-pointer group-hover:bg-accent/40">
+              <svg class="text-accent ml-1" width="32" height="32" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>
+            </div>
+          </div>
+          <img src="https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=2070&auto=format&fit=crop" class="w-full h-full object-cover grayscale opacity-40 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700" alt="Video Preview" />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- VIEW: LOGIN (Dedicated Overlay) -->
+  <section id="login-view" class="view-container">
+    <div class="glass w-full max-w-md rounded-3xl p-8 border border-white/10 shadow-2xl relative mx-6 z-10">
+      <div class="text-center mb-8">
+        <h2 class="text-3xl font-bold mb-2">Portal Access</h2>
+        <p class="text-white/40 text-sm">Sign in to continue your journey.</p>
+      </div>
+      <form id="login-form" class="space-y-4">
+        <input type="email" placeholder="Email Address" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:border-accent outline-none transition-all" required />
+        <input type="password" placeholder="Password" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:border-accent outline-none transition-all" required />
+        <button type="submit" class="w-full bg-accent text-midnight font-bold py-4 rounded-xl hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-accent/20">Sign In</button>
+        <div class="flex justify-between items-center mt-6 text-sm">
+          <a href="#getting-started" class="text-white/40 hover:text-white">← Back</a>
+          <p class="text-white/40">Don't have an account? <a href="#signup" class="text-accent font-bold hover:underline">Create One</a></p>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- VIEW: SIGNUP (Dedicated Overlay) -->
+  <section id="signup-view" class="view-container">
+    <div class="glass w-full max-w-md rounded-3xl p-8 border border-white/10 shadow-2xl relative mx-6 z-10">
+      <div class="text-center mb-8">
+        <h2 class="text-3xl font-bold mb-2">Initialize Hub</h2>
+        <p class="text-white/40 text-sm">Create your secure developer identity.</p>
+      </div>
+      <form id="signup-form" class="space-y-4">
+        <input type="text" name="username" placeholder="Username" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:border-accent outline-none transition-all" required />
+        <input type="email" placeholder="Email Address" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:border-accent outline-none transition-all" required />
+        <input type="password" placeholder="Password" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:border-accent outline-none transition-all" required />
+        <div class="grid grid-cols-2 gap-4">
+          <input type="text" name="leetcode" placeholder="LeetCode Handle" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:border-accent outline-none transition-all" />
+          <input type="text" name="codeforces" placeholder="CodeForces Handle" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:border-accent outline-none transition-all" />
+        </div>
+        <button type="submit" class="w-full bg-accent text-midnight font-bold py-4 rounded-xl hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-accent/20">Initialize Hub</button>
+        <div class="flex justify-between items-center mt-6 text-sm">
+          <a href="#getting-started" class="text-white/40 hover:text-white">← Back</a>
+          <p class="text-white/40">Already a member? <a href="#login" class="text-accent font-bold hover:underline">Sign In</a></p>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- AI MENTOR WIDGET -->
+  <div id="ai-mentor-container" class="fixed bottom-6 right-6 z-[100]">
+    <button id="ai-mentor-toggle" class="w-14 h-14 bg-accent text-midnight rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-all">
+       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+    </button>
+  </div>
+
+  <!-- SCRIPTS -->
+  <script type="module">
+    import { dashboard } from '/js/features/dashboard.js';
+    import { settings } from '/js/features/settings.js';
+    import { router } from '/js/core/app-router.js';
+    import { auth } from '/js/auth/auth.js';
+    import '/js/features/mentor.js';
+    import '/js/v2-video-logic.js';
+
+    window.CodeSphere = { dashboard, settings, router, auth };
+
+    const boot = async () => {
+      console.log('[CodeSphere] Booting V2...');
+      const user = sessionStorage.getItem('cs_user');
+      document.body.classList.toggle('is-logged-in', !!user);
+      
+      try {
+        auth.init();
+        dashboard.loadState();
+        settings.init();
+        router.handleRoute();
+        console.log('[CodeSphere] System Ready');
+      } catch (e) {
+        console.error('[CodeSphere] Boot Failure:', e);
+      }
+    };
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', boot);
+    } else {
+      boot();
+    }
+  </script>
+</body>
+</html>

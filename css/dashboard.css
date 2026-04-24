@@ -1,0 +1,257 @@
+/**
+ * dashboard.css — Professional LeetCode Workspace Styling
+ * High-density dashboard with SVG visualizations.
+ */
+
+/* ── 1. Sidebar Dashboard Specifics ── */
+.dash-sidebar-content {
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.profile-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.profile-avatar-large {
+  width: 80px;
+  height: 80px;
+  border-radius: 12px;
+  object-fit: cover;
+  background-color: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border-strong);
+}
+
+.profile-name-bold {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.profile-handle-muted {
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.profile-rank-badge {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.profile-rank-badge .mono-text {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+/* Dense Stat Items */
+.dense-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.stat-icon {
+  font-size: 18px;
+  width: 24px;
+  text-align: center;
+}
+
+.stat-label {
+  flex: 1;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.stat-value-mono {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+/* Progress Stacks (Languages) */
+.progress-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.progress-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.progress-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.progress-bar-bg {
+  height: 4px;
+  background: var(--color-bg-tertiary);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--color-accent);
+  border-radius: 2px;
+}
+
+/* Skill Tags Cloud */
+.skill-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.skill-tag {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* ── 2. Main Dashboard Layout ── */
+.workspace-main {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.dashboard-row {
+  display: grid;
+  gap: 24px;
+}
+
+.dashboard-row--tier1, .dashboard-row--tier2 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.dashboard-row--tier1 .dash-card {
+  min-height: 180px;
+}
+
+/* Tier 3 & 4: Full Width Spanning */
+.dashboard-row--tier3, .dashboard-row--tier4 {
+  grid-template-columns: 1fr;
+  width: 100%;
+}
+
+.dash-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 24px;
+  transition: opacity 0.3s ease;
+}
+
+/* Loading/Syncing State */
+.dash-card.is-syncing {
+  opacity: 0.5;
+  animation: pulse-sync 1.5s infinite ease-in-out;
+  pointer-events: none;
+}
+
+@keyframes pulse-sync {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.3; }
+}
+
+/* Heatmap Grid (Scrollable on Mobile) */
+#heatmap-main-wrapper {
+  display: flex;
+  justify-content: flex-start;
+  gap: 12px;
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+#heatmap-main-wrapper::-webkit-scrollbar {
+  height: 4px;
+}
+
+#heatmap-main-wrapper::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+.heatmap-cell {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background-color: var(--color-bg-tertiary);
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.heatmap-cell:hover {
+  transform: scale(1.3);
+  z-index: 10;
+}
+
+/* Activity Levels (GitHub Palette) */
+.heatmap-cell[data-level="0"] { background-color: var(--color-bg-tertiary); }
+.heatmap-cell[data-level="1"] { background-color: #9be9a8; }
+.heatmap-cell[data-level="2"] { background-color: #40c463; }
+.heatmap-cell[data-level="3"] { background-color: #30a14e; }
+.heatmap-cell[data-level="4"] { background-color: #216e39; }
+
+.month-block {
+  flex-shrink: 0;
+}
+
+/* Recent AC List Fusion */
+.recent-ac-list {
+  list-style: none;
+  padding: 0;
+}
+
+.recent-ac-item {
+  display: flex !important;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ac-title {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  max-width: 70%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ac-time {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* Typography Enforcement */
+.mono-val {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Donut Chart Transitions */
+.donut-chart-container {
+  transition: background 0.5s ease-in-out;
+}
+
