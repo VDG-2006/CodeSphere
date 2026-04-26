@@ -17,7 +17,7 @@ const PROTECTED_ROUTES = new Set([
 // Routes that use the video grid section
 const VIDEO_GRID_ROUTES = new Set([
   'home', 'trending', 'subscriptions', 'history', 'recommended',
-  'java', 'dsa', 'webdev', 'ai'
+  'java', 'dsa', 'webdev'
 ]);
 
 // Maps route → section ID
@@ -33,7 +33,7 @@ const ROUTE_MAP = {
   java: 'home-section',
   dsa: 'home-section',
   webdev: 'home-section',
-  ai: 'home-section',
+  ai: 'ai-section',
   player: 'player-section',
   dashboard: 'dashboard-section',
   settings: 'settings-section',
