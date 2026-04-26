@@ -1,0 +1,211 @@
+require('dotenv').config();
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+const path = require('path');
+
+// Models
+const User = require('./models/User');
+const StatsCache = require('./models/StatsCache');
+
+// Controllers
+// Controllers
+const { register, login } = require('./controllers/authController');
+const { getVideos, getTrending, getVideoById } = require('./controllers/videoController');
+const { toggleLike, toggleSubscribe, getUserVideoState } = require('./controllers/interactionController');
+const { getSettings, updateSettings } = require('./controllers/userController');
+
+// Middlewares
+const { validateStatsRequest } = require('./middlewares/validateStatsRequest');
+const authMiddleware = require('./middlewares/authMiddleware');
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+// 1. MIDDLEWARE
+app.use(helmet({
+  contentSecurityPolicy: false, 
+})); 
+app.use(express.json());
+app.use(cors({ origin: '*' }));
+
+// Serve static files from client directory (V2 UI)
+app.use('/js', express.static(path.join(__dirname, '..', 'client', 'js')));
+app.use('/css', express.static(path.join(__dirname, '..', 'client', 'css')));
+app.use('/assets', express.static(path.join(__dirname, '..', 'client', 'assets')));
+
+// External Video Content Route
+const externalPath = 'D:\\Sigma Web Dev\\Sigma Web Development Course - Web Development Tutorials in Hindi 🗿';
+app.use('/api/content', express.static(externalPath, {
+  setHeaders: (res, path) => {
+    if (path.endsWith('.mp4')) {
+      res.set('Content-Type', 'video/mp4');
+      res.set('Accept-Ranges', 'bytes');
+    }
+  }
+}));
+
+app.use(express.static(path.join(__dirname, '..', 'client')));
+
+const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 150 });
+app.use('/api/', limiter);
+
+// 2. DATABASE CONNECTION
+const dbState = { isConnected: false };
+mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/codesphere-dev')
+  .then(() => {
+    console.log('[DB] CodeSphere MongoDB Connected');
+    dbState.isConnected = true;
+  })
+  .catch(err => {
+    console.error('[DB] Connection Error:', err.message);
+    dbState.isConnected = false;
+  });
+
+// Database connectivity guard
+app.use('/api', (req, res, next) => {
+  if (!dbState.isConnected && mongoose.connection.readyState !== 1) {
+    return res.status(503).json({ 
+      success: false, 
+      message: "Database initializing... please try again in a few seconds." 
+    });
+  }
+  next();
+});
+
+// 3. API ROUTES
+
+// Auth (Independent JWT + Bcrypt)
+app.post('/api/auth/register', register);
+app.post('/api/auth/login', login);
+
+// Video Engine
+app.get('/api/videos', getVideos);
+app.get('/api/videos/trending', getTrending);
+app.get('/api/videos/:id', getVideoById);
+
+// Interactions
+app.post('/api/videos/:id/like', authMiddleware, toggleLike);
+app.post('/api/user/subscribe/:creatorId', authMiddleware, toggleSubscribe);
+app.get('/api/videos/:id/state', authMiddleware, getUserVideoState);
+
+// User Settings
+app.get('/api/user/settings', authMiddleware, getSettings);
+app.put('/api/user/settings', authMiddleware, updateSettings);
+
+// Routes
+const statsRoutes = require('./routes/statsRoutes');
+app.use('/api/stats', statsRoutes);
+
+// Atomic Purge for Stats Handles
+app.post('/api/user/handles', authMiddleware, async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { handles } = req.body;
+    
+    // ATOMIC PURGE: Immediately delete cache entries for any handle that is being updated
+    if (handles && typeof handles === 'object') {
+      const handlesToPurge = Object.values(handles).filter(Boolean);
+      if (handlesToPurge.length > 0) {
+        await StatsCache.deleteMany({ handle: { $in: handlesToPurge } });
+        console.log(`[Cache Purge] Atomic purge triggered for handles: ${handlesToPurge.join(', ')}`);
+      }
+    }
+
+    const user = await User.findByIdAndUpdate(userId, { handles }, { new: true });
+    res.json({ success: true, message: 'Handles updated and cache purged successfully', data: user });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// AI Mentor Proxy (Hides API Keys + Caching + Rate Limit Handling)
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const AICache = require('./models/AICache');
+
+app.post('/api/mentor/chat', authMiddleware, async (req, res, next) => {
+  try {
+    const { prompt } = req.body;
+    if (!prompt) return res.status(400).json({ success: false, message: 'Prompt is required' });
+
+    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY_HERE') {
+      return res.status(500).json({ success: false, message: 'Gemini API key not configured on server' });
+    }
+
+    // 1. CHECK CACHE FIRST
+    const cachedResponse = await AICache.findOne({ prompt: prompt.toLowerCase().trim() });
+    if (cachedResponse) {
+      console.log('[AI Cache] Serving from cache for:', prompt.substring(0, 30) + '...');
+      return res.json({ success: true, reply: cachedResponse.reply, cached: true });
+    }
+
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    
+    // 2. MULTI-MODEL FALLBACK STRATEGY
+    // We try 1.5-flash (stable), then 2.0-flash (experimental), then gemini-pro
+    const modelsToTry = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-pro"];
+    let lastError = null;
+    let text = null;
+
+    for (const modelName of modelsToTry) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const fullPrompt = `System: You are the CodeSphere Mentor. Help the user solve their CP problems based on their current stats and solved count.\n\nUser: ${prompt}`;
+        
+        const result = await model.generateContent(fullPrompt);
+        const response = await result.response;
+        
+        if (response.candidates && response.candidates.length > 0) {
+          text = response.text();
+          if (text) break; // Found a working model!
+        }
+      } catch (err) {
+        console.warn(`[AI Mentor] Model ${modelName} failed:`, err.message);
+        lastError = err;
+        
+        // If it's a rate limit error (429), don't bother trying other models immediately
+        if (err.status === 429) break; 
+      }
+    }
+
+    if (!text) {
+      if (lastError?.status === 429) {
+        return res.status(429).json({ 
+          success: false, 
+          message: 'The Mentor is currently busy (Rate Limit reached). Please try again in a minute.' 
+        });
+      }
+      throw new Error(lastError?.message || 'AI Mentor is currently offline');
+    }
+
+    // 3. SAVE TO CACHE
+    await AICache.create({ 
+      prompt: prompt.toLowerCase().trim(), 
+      reply: text 
+    }).catch(e => console.warn('[AI Cache] Save failed:', e.message));
+    
+    res.json({ success: true, reply: text });
+  } catch (error) {
+    console.error('[Mentor API] Error:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message.includes('Safety') ? '⚠️ AI blocked this request for safety reasons.' : 'AI Mentor is currently offline',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// SPA Routing: Serve index.html for all non-API routes
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'client', 'index.html'));
+});
+
+// 4. ERROR HANDLING
+app.use((err, req, res, next) => {
+  console.error('[Error]', err.stack);
+  res.status(500).json({ success: false, message: err.message || "Internal Server Error" });
+});
+
+app.listen(PORT, () => console.log(`[Server] CodeSphere active on port ${PORT}`));
