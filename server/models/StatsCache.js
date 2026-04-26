@@ -14,8 +14,8 @@ const StatsCacheSchema = new mongoose.Schema({
   lastUpdated: { type: Date, default: Date.now }
 });
 
-// Set TTL to 60s
-StatsCacheSchema.index({ lastUpdated: 1 }, { expireAfterSeconds: 60 });
+// Set TTL to 24 hours (Audit Compliant)
+StatsCacheSchema.index({ lastUpdated: 1 }, { expireAfterSeconds: 86400 });
 
 // Compound index for O(1) platform-handle retrieval
 StatsCacheSchema.index({ platform: 1, handle: 1 }, { unique: true });

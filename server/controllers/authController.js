@@ -26,8 +26,10 @@ exports.register = async (req, res, next) => {
         _id: user._id,
         username: user.username,
         email: user.email,
+        fullName: user.fullName,
         avatarUrl: user.avatarUrl,
         handles: user.handles,
+        settings: user.settings,
         token: generateToken(user._id)
       }
     });
@@ -68,8 +70,10 @@ exports.login = async (req, res, next) => {
         _id: user._id,
         username: user.username,
         email: user.email,
+        fullName: user.fullName,
         avatarUrl: user.avatarUrl,
         handles: user.handles,
+        settings: user.settings,
         token: generateToken(user._id)
       }
     });

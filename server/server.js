@@ -11,9 +11,11 @@ const User = require('./models/User');
 const StatsCache = require('./models/StatsCache');
 
 // Controllers
+// Controllers
 const { register, login } = require('./controllers/authController');
-const { getPlatformStats } = require('./controllers/statsController');
-const { getVideos, getTrending, getVideoById, seedVideos } = require('./controllers/videoController');
+const { getVideos, getTrending, getVideoById } = require('./controllers/videoController');
+const { toggleLike, toggleSubscribe, getUserVideoState } = require('./controllers/interactionController');
+const { getSettings, updateSettings } = require('./controllers/userController');
 
 // Middlewares
 const { validateStatsRequest } = require('./middlewares/validateStatsRequest');
@@ -29,13 +31,13 @@ app.use(helmet({
 app.use(express.json());
 app.use(cors({ origin: '*' }));
 
-// Serve static files from root and subdirectories (V2 UI)
-app.use('/js', express.static(path.join(__dirname, '..', 'js')));
-app.use('/css', express.static(path.join(__dirname, '..', 'css')));
-app.use('/assets', express.static(path.join(__dirname, '..', 'assets')));
+// Serve static files from client directory (V2 UI)
+app.use('/js', express.static(path.join(__dirname, '..', 'client', 'js')));
+app.use('/css', express.static(path.join(__dirname, '..', 'client', 'css')));
+app.use('/assets', express.static(path.join(__dirname, '..', 'client', 'assets')));
 
 // External Video Content Route
-const externalPath = path.join(__dirname, '..', 'content');
+const externalPath = 'D:\\Sigma Web Dev\\Sigma Web Development Course - Web Development Tutorials in Hindi 🗿';
 app.use('/api/content', express.static(externalPath, {
   setHeaders: (res, path) => {
     if (path.endsWith('.mp4')) {
@@ -45,7 +47,7 @@ app.use('/api/content', express.static(externalPath, {
   }
 }));
 
-app.use(express.static(path.join(__dirname, '..')));
+app.use(express.static(path.join(__dirname, '..', 'client')));
 
 const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 150 });
 app.use('/api/', limiter);
@@ -82,11 +84,20 @@ app.post('/api/auth/login', login);
 // Video Engine
 app.get('/api/videos', getVideos);
 app.get('/api/videos/trending', getTrending);
-app.get('/api/videos/seed', authMiddleware, seedVideos); // Protected dev helper
 app.get('/api/videos/:id', getVideoById);
 
-// Stats Engine (Mapping Pattern + 60s TTL)
-app.get('/api/stats/:platform/:handle', validateStatsRequest, getPlatformStats);
+// Interactions
+app.post('/api/videos/:id/like', authMiddleware, toggleLike);
+app.post('/api/user/subscribe/:creatorId', authMiddleware, toggleSubscribe);
+app.get('/api/videos/:id/state', authMiddleware, getUserVideoState);
+
+// User Settings
+app.get('/api/user/settings', authMiddleware, getSettings);
+app.put('/api/user/settings', authMiddleware, updateSettings);
+
+// Routes
+const statsRoutes = require('./routes/statsRoutes');
+app.use('/api/stats', statsRoutes);
 
 // Atomic Purge for Stats Handles
 app.post('/api/user/handles', authMiddleware, async (req, res, next) => {
@@ -120,7 +131,7 @@ app.post('/api/mentor/chat', authMiddleware, async (req, res, next) => {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ 
       model: "gemini-1.5-flash",
-      systemInstruction: "You are a senior B.Tech Computer Science & Engineering project mentor. Guide students through technical challenges, code reviews, DSA, and career questions. Be concise and actionable."
+      systemInstruction: "You are the CodeSphere Mentor. Help the user solve their CP problems based on their current stats and solved count."
     });
 
     const result = await model.generateContent(prompt);
@@ -134,7 +145,7 @@ app.post('/api/mentor/chat', authMiddleware, async (req, res, next) => {
 
 // SPA Routing: Serve index.html for all non-API routes
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'index.html'));
+  res.sendFile(path.join(__dirname, '..', 'client', 'index.html'));
 });
 
 // 4. ERROR HANDLING

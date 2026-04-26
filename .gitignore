@@ -1,6 +1,6 @@
 # ── Sensitive runtime config ────────────────────────────────
 # Never commit the real credentials file.
-js/core/config.js
+client/js/core/config.js
 .env
 server/.env
 

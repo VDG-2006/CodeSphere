@@ -12,6 +12,7 @@ const VideoSchema = new mongoose.Schema({
   },
   views: { type: Number, default: 0 },
   likes: { type: Number, default: 0 },
+  likedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   creator: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   duration: { type: Number, default: 0 } // Duration in seconds
 }, { timestamps: true });

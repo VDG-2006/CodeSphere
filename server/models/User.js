@@ -13,10 +13,24 @@ const UserSchema = new mongoose.Schema({
   },
   password: { type: String, required: true, minlength: 8 },
   avatarUrl: { type: String, default: '' },
+  fullName: { type: String, default: '' },
   subscriptions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  subscribersCount: { type: Number, default: 0 },
   handles: {
     leetcode: { type: String, default: '' },
     codeforces: { type: String, default: '' }
+  },
+  settings: {
+    preferences: {
+      cooldown: { type: Boolean, default: true },
+      defaultView: { type: String, default: 'dashboard' },
+      heatmapIntensity: { type: Number, default: 5 }
+    },
+    aiMentor: {
+      visible: { type: Boolean, default: true },
+      chatPref: { type: String, default: 'text' },
+      autoAnalyze: { type: Boolean, default: false }
+    }
   }
 }, { timestamps: true });
 
