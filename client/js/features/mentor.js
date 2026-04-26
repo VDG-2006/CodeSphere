@@ -106,8 +106,19 @@ const handleSendMessage = async (inputEl, containerEl, buttonEl) => {
 
   // 4. Remove loading & Add bot message
   indicator.remove();
-  if (buttonEl) buttonEl.disabled = false;
-  appendMessage(containerEl, reply, true);
+  
+  if (reply.includes('Rate Limit')) {
+    appendMessage(containerEl, '⚠️ ' + reply, true);
+  } else {
+    appendMessage(containerEl, reply, true);
+  }
+
+  // 5. Cooldown: Keep button disabled for 2s to prevent spamming
+  if (buttonEl) {
+    setTimeout(() => {
+      buttonEl.disabled = false;
+    }, 2000);
+  }
 };
 
 // ─────────────────────────────────────────────────────────────────

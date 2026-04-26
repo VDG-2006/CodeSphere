@@ -121,25 +121,79 @@ app.post('/api/user/handles', authMiddleware, async (req, res, next) => {
   }
 });
 
-// AI Mentor Proxy (Hides API Keys)
+// AI Mentor Proxy (Hides API Keys + Caching + Rate Limit Handling)
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const AICache = require('./models/AICache');
+
 app.post('/api/mentor/chat', authMiddleware, async (req, res, next) => {
   try {
     const { prompt } = req.body;
     if (!prompt) return res.status(400).json({ success: false, message: 'Prompt is required' });
 
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
-      systemInstruction: "You are the CodeSphere Mentor. Help the user solve their CP problems based on their current stats and solved count."
-    });
+    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'YOUR_GEMINI_API_KEY_HERE') {
+      return res.status(500).json({ success: false, message: 'Gemini API key not configured on server' });
+    }
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    res.json({ success: true, reply: response.text() });
+    // 1. CHECK CACHE FIRST
+    const cachedResponse = await AICache.findOne({ prompt: prompt.toLowerCase().trim() });
+    if (cachedResponse) {
+      console.log('[AI Cache] Serving from cache for:', prompt.substring(0, 30) + '...');
+      return res.json({ success: true, reply: cachedResponse.reply, cached: true });
+    }
+
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    
+    // 2. MULTI-MODEL FALLBACK STRATEGY
+    // We try 1.5-flash (stable), then 2.0-flash (experimental), then gemini-pro
+    const modelsToTry = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-pro"];
+    let lastError = null;
+    let text = null;
+
+    for (const modelName of modelsToTry) {
+      try {
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const fullPrompt = `System: You are the CodeSphere Mentor. Help the user solve their CP problems based on their current stats and solved count.\n\nUser: ${prompt}`;
+        
+        const result = await model.generateContent(fullPrompt);
+        const response = await result.response;
+        
+        if (response.candidates && response.candidates.length > 0) {
+          text = response.text();
+          if (text) break; // Found a working model!
+        }
+      } catch (err) {
+        console.warn(`[AI Mentor] Model ${modelName} failed:`, err.message);
+        lastError = err;
+        
+        // If it's a rate limit error (429), don't bother trying other models immediately
+        if (err.status === 429) break; 
+      }
+    }
+
+    if (!text) {
+      if (lastError?.status === 429) {
+        return res.status(429).json({ 
+          success: false, 
+          message: 'The Mentor is currently busy (Rate Limit reached). Please try again in a minute.' 
+        });
+      }
+      throw new Error(lastError?.message || 'AI Mentor is currently offline');
+    }
+
+    // 3. SAVE TO CACHE
+    await AICache.create({ 
+      prompt: prompt.toLowerCase().trim(), 
+      reply: text 
+    }).catch(e => console.warn('[AI Cache] Save failed:', e.message));
+    
+    res.json({ success: true, reply: text });
   } catch (error) {
     console.error('[Mentor API] Error:', error.message);
-    res.status(500).json({ success: false, message: 'AI Mentor is currently offline' });
+    res.status(500).json({ 
+      success: false, 
+      message: error.message.includes('Safety') ? '⚠️ AI blocked this request for safety reasons.' : 'AI Mentor is currently offline',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
